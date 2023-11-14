@@ -4,7 +4,7 @@ import pandas as pd
 import selfies
 import glob
 import torch
-import chemistry_vae_selfies
+import chemistry_vae_selfies_carlos
 import data_loader
 import pandas as pd
 import numpy as np
@@ -56,14 +56,14 @@ class PropertyRegressionModel(nn.Module):
         batch_size = x.shape[0]        
 
         x = self.ls_in(x)
-        x = self.activation(x)
         x = self.batchnorm_first(x)
+        x = self.activation(x)     
         x = self.dropout(x)
 
         for i in range(len(self.layers)):
             x = self.layers[i](x)
-            x = self.activation(x)
             x = self.batchnorm_hidden[i](x)
+            x = self.activation(x)
             x = self.dropout(x)
 
         reg_prop_out = self.reg_prop_pred(x)
@@ -108,17 +108,24 @@ def filter(list_of_properties, largest_selfies_len, selfies_alphabet, vae_encode
     selfie_input_valid = []
     latent_space_valid = []
     props_valid = []
+    length_properties = len(list_of_properties)
 
 
-    for i in range(len(list_of_properties)):
+
+    for i in range(length_properties):
+        
         try:
-            selfie_input = selfies.encoder(list_of_properties[i][0])
+            selfie_input = selfies.encoder(list_of_properties[i][0])            
             latent_vector = create_latent_space_vector(selfie_input,largest_selfies_len,selfies_alphabet, vae_encoder, vae_decoder)
             selfie_input_valid.append(selfie_input)
             latent_space_valid.append([latent_vector] )
             props_valid.append([float(list_of_properties[i][1]), float(list_of_properties[i][2])] )
+            if i%1000:
+                print('success',(i/length_properties)*100,"\%")
         except Exception as ve:
-            print("vector skipped")
+            if i%1000:
+                print("Skipped, ",(i/length_properties)*100,"\%")
+            continue
 
     return selfie_input_valid, latent_space_valid, props_valid
 
@@ -188,7 +195,7 @@ def main():
 
     full_path = folder_path + file_name
 
-    selfies_list, selfies_alphabet, largest_selfies_len, smiles_list, smiles_alphabet, largest_smiles_len = chemistry_vae_selfies.get_selfie_and_smiles_encodings_for_dataset(full_path)
+    selfies_list, selfies_alphabet, largest_selfies_len, smiles_list, smiles_alphabet, largest_smiles_len = chemistry_vae_selfies_carlos.get_selfie_and_smiles_encodings_for_dataset(full_path)
 
     selfies_alphabet = ['[#Branch2]', '[Ring2]', '[Branch2]', '[=Branch2]', '[O]', '[=O]', '[=C]', '[=N]', '[#Branch1]', '[=Branch1]', '[nop]', '[N]', '[Branch1]', '[F]', '[#C]', '[#N]', '[Ring1]', '[C]']
 

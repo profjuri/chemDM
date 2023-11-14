@@ -1,17 +1,18 @@
 data:
-  batch_size: 5000
+  batch_size: 1000
 
 architecture:
-  hidden_dim: 512
-  prop_hidden_dim: 128  
+  hidden_dim: 1000
+  prop_hidden_dim: 1000  
   prop_pred_activation: 'leaky_relu'
-  prop_pred_dropout: 0.5
-  prop_pred_depth: 1
-  prop_growth_factor: 0.25
+  prop_pred_dropout: 0.4
+  prop_pred_depth: 4
+  prop_growth_factor: 1.0
+
 
 training:
-  lr: 0.01
-  num_epochs: 50
+  lr: 0.001
+  num_epochs: 100
 
 
   

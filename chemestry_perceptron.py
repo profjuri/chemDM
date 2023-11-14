@@ -22,38 +22,41 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
         super(PropertyRegressionModel, self).__init__()
-
+        
         self.ls_in = nn.Linear(input_dim, hidden_dim)
         self.activation = self._get_activation(prop_pred_activation)
-        self.dropout = nn.Dropout(prop_pred_dropout)
+        self.dropout = nn.Dropout(p=prop_pred_dropout)
         self.layers = nn.ModuleList()
+        self.batchnorm_first = nn.BatchNorm1d(hidden_dim)
+        self.batchnorm_hidden = nn.BatchNorm1d(prop_hidden_dim)
+
 
         # Add the first hidden layer manually to match the input_dim and prop_hidden_dim
         first_hidden_layer = nn.Linear(hidden_dim, prop_hidden_dim)
         self.layers.append(first_hidden_layer)
-        if prop_pred_dropout > 0:
-            self.layers.append(nn.Dropout(prop_pred_dropout))
 
         # Add the rest of the hidden layers
         if prop_pred_depth > 1:
             for p_i in range(1, prop_pred_depth):
                 hidden_layer = nn.Linear(prop_hidden_dim, prop_hidden_dim)  # Output size matches the input size
                 self.layers.append(hidden_layer)
-                self.activation = self._get_activation(prop_pred_activation)
-                if prop_pred_dropout > 0:
-                    self.layers.append(nn.Dropout(prop_pred_dropout))
 
         self.reg_prop_pred = nn.Linear(prop_hidden_dim, 1)  # For regression tasks, single output node
 
     def forward(self, x):
+        batch_size = x.shape[0]
+        
+
         x = self.ls_in(x)
         x = self.activation(x)
+        x = self.batchnorm_first(x)
+        x = self.dropout(x)
         
         for layer in self.layers:
             x = layer(x)
             x = self.activation(x)
-            if isinstance(layer, nn.Linear) and self.dropout.p > 0:
-                x = self.dropout(x)
+            x = self.batchnorm_hidden(x)
+            x = self.dropout(x)
 
         reg_prop_out = self.reg_prop_pred(x)
         return reg_prop_out

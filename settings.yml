@@ -1,22 +1,22 @@
 data:
-  batch_size: 190
+  batch_size: 250
   smiles_file: datasets/SelectedSMILES_QM9.txt
   type_of_encoding: 1
 
 decoder:
-  latent_dimension: 25
+  latent_dimension: 50
   gru_neurons_num: 100
-  gru_stack_size: 1
+  gru_stack_size: 3
 
 encoder:
-  layer_1d: 100
-  layer_2d: 50
-  layer_3d: 25
-  latent_dimension: 25
+  layer_1d: 400
+  layer_2d: 200
+  layer_3d: 100
+  latent_dimension: 50
 
 training:
   KLD_alpha:  0.003209 #0.00005 #0.01 #0.023 #1.0e-05
-  lr_enc: 0.002427375401692564 #0.0002
-  lr_dec: 0.002427375401692564 #0.0002
-  num_epochs: 5000
-  sample_num: 1000
+  lr_enc: 0.004 #0.00243 #0.0002
+  lr_dec: 0.004 #0.00243 #0.0002
+  num_epochs: 500
+  sample_num: 100
