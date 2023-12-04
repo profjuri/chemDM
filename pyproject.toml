@@ -8,8 +8,8 @@ version = "0.1.0"
 description = "code for analyzing chemical properties in the context of searches for dark matter"
 authors = [
     {name = "Carlos Blanco", email = "carlosblanco2718@gmail.com"},
-    {name = "Juri Smirnov", email = "Juri.Smirnov@liverpool.ac.uk"},
-    {name = "Cameron Cook", email = "sgccook2@liverpool.ac.uk"}]
+    {name = "Cameron Cook", email = "sgccook2@liverpool.ac.uk"},
+    {name = "Juri Smirnov", email = "Juri.Smirnov@liverpool.ac.uk"}]
 license = {text="LICENSE.txt"}
 
 [tool.dependencies]
@@ -26,7 +26,6 @@ selfies = "^2.1"
 deepchem = "^2.5"
 rdkit = "^2023.9"
 levenshtein = "^0.23"
-
 
 [tool.dev-dependencies]
 pytest = "^7.3.1"
