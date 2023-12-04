@@ -1,0 +1,52 @@
+settings:
+  input_dim: 256
+  smiles_file: ../../symmetric_rnn_vae_folder/datasets/filtered_qm9_energies.csv
+  target_file: ../../symmetric_rnn_vae_folder/datasets/filtered_qm9_energies.csv
+  vae_file: ../../symmetric_rnn_vae_folder/wass_vae/stack_size1neurons_num2048_l_dim256num_count1/
+  vae_epoch: 50
+  output_folder: ./hpam_search_qm9
+  num_of_cycles: 5000
+  selfies_alphabet: [
+    "[nop]",
+    "[C-1]",
+    "[=N]",
+    "[O-1]",
+    "[#Branch2]",
+    "[O]",
+    "[#Branch1]",
+    "[Ring1]",
+    "[#N]",
+    "[N-1]",
+    "[NH1+1]",
+    "[Branch2]",
+    "[N]",
+    "[F]",
+    "[=NH2+1]",
+    "[C]",
+    "[NH3+1]",
+    "[=Branch2]",
+    "[=C]",
+    "[#C]",
+    "[=NH1+1]",
+    "[=O]",
+    "[=Branch1]",
+    "[NH2+1]",
+    "[CH1-1]",
+    "[Branch1]",
+    "[Ring2]"
+]
+
+hyperparameters:
+  lr: 0.0005
+  batch_size: 1024
+  hidden_dim: 512
+  prop_hidden_dim: 32
+  prop_pred_activation: leaky_relu
+  dropout: 0
+  depth: 6
+  growth: 1
+  loss_choice: 2
+  learning_rate_factor: 0.1
+  learning_rate_patience: 10
+  epochs: 250
+  weight_choice: 0
