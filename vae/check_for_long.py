@@ -1,6 +1,6 @@
 import selfies
 import torch
-import chemistry_vae_symmetric_rnn_OG
+import chemistry_vae_symmetric_rnn_final
 import time
 import random
 import pandas as pd
