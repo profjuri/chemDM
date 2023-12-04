@@ -1,41 +1,14 @@
-import importlib
 import os
-import numpy as np
 import pandas as pd
-import selfies
-import glob
 import torch
-import pandas as pd
-import numpy as np
-import torch
-import torch.nn as nn
-import random
-import time
-import math
-from rdkit import Chem
-from rdkit.Chem import rdFingerprintGenerator
-from rdkit import DataStructs
-import matplotlib.pyplot as plt
-import torch.distributions as dist
 import yaml
-from torch.optim import LBFGS
 
-
-
-from random import sample
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from torch.optim.lr_scheduler import StepLR
 
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-import sys
-sys.path.insert(0, '../vae/')
-
 import chemistry_vae_symmetric_rnn_final
-import data_loader
-
 
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
@@ -66,8 +39,6 @@ class PropertyRegressionModel(nn.Module):
         x = self.ls_in(x)
         x = self.activation(x)
 
-
-        
         for layer in self.layers:
             x = layer(x)
             x = self.activation(x)
@@ -97,10 +68,6 @@ def min_max_normalize(tensor):
     max_val = torch.max(tensor)
     normalized_tensor = (tensor - min_val) / (max_val - min_val)
     return normalized_tensor
-
-
-
-
 
 def stats(y_test, y_pred):
     mse = mean_squared_error(y_test, y_pred)
@@ -134,10 +101,6 @@ def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation
 def save_r2_loss(epoch, r2, train_r2, loss, settings):
 
     out_dir = settings['settings']['output_folder']
-    log_folder = out_dir  # Replace with the desired folder path
-    log_filename = 'r2_loss.txt'
-
-
     log_folder = out_dir  # Replace with the desired folder path
     log_filename = 'r2_loss.txt'
 
@@ -274,12 +237,6 @@ def main():
         return
     
     input_dim = settings['settings']['input_dim']
-    smiles_file = settings['settings']['smiles_file']
-    vae_file = settings['settings']['vae_file']
-    vae_epoch = settings['settings']['vae_epoch']
-    selfies_alphabet = settings['settings']['selfies_alphabet']
-    output_folder = settings['settings']['output_folder']
-    num_of_cycles = settings['settings']['num_of_cycles']
 
     learning_rate = settings['hyperparameters']['lr']
     batch_size = settings['hyperparameters']['batch_size']
@@ -294,7 +251,6 @@ def main():
     learning_rate_patience = settings['hyperparameters']['learning_rate_patience']
     epochs = settings['hyperparameters']['epochs']
     weight_choice = settings['hyperparameters']['weight_choice']
-    norm_factor = settings['hyperparameters']['norm_factor']
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
