@@ -1,7 +1,5 @@
 import selfies as sf
 import torch
-import torch.distributions as dist
-import data_loader
 import numpy as np
 
 def selfies_to_hot(selfie, largest_selfie_len, alphabet):

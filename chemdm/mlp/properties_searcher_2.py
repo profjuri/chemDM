@@ -8,7 +8,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-import chemistry_vae_symmetric_rnn_final
+from chemdm.vae import chemistry_vae_symmetric_rnn_final
 
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
