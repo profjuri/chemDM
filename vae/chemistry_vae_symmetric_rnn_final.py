@@ -89,8 +89,8 @@ def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet):
 
     out_dir = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/{}'.format(epoch) 
     _make_dir(out_dir)
-    torch.save(encoder, '{}/E'.format(out_dir))
-    torch.save(decoder, '{}/D'.format(out_dir))
+    torch.save(encoder.state_dict(), '{}/E'.format(out_dir))
+    torch.save(decoder.state_dict(), '{}/D'.format(out_dir))
 
     settings_folder = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/settings'
 
