@@ -79,7 +79,7 @@ def _make_dir(directory):
     os.makedirs(directory)
 
 
-def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet, num_counts):
+def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet):
 
     gru_stack_size = settings['encoder']['gru_stack_size']
     gru_neurons_num = settings['encoder']['gru_neurons_num']
@@ -87,32 +87,30 @@ def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet, nu
     save_path = settings['data']['save_path']
 
 
-    out_dir = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + 'num_count' + str(num_counts) + '/{}'.format(epoch) 
+    out_dir = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/{}'.format(epoch) 
     _make_dir(out_dir)
     torch.save(encoder, '{}/E'.format(out_dir))
     torch.save(decoder, '{}/D'.format(out_dir))
 
+    settings_folder = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/settings'
 
-    log_folder = out_dir  # Replace with the desired folder path
-    log_filename = 'settings_log.txt'
+    log_folder = settings_folder
+    log_filename = 'settings.yml'
 
-    # Create the log folder if it doesn't exist
-    if not os.path.exists(log_folder):
-        os.makedirs(log_folder)
+    if not os.path.exists(settings_folder):
+        os.makedirs(settings_folder)
 
-    # Generate the full file path
-    log_filepath = os.path.join(log_folder, log_filename)
+        log_filepath = os.path.join(log_folder, log_filename)
+        data = {**settings, 'alphabet': alphabet}
 
-    # Open the file in write mode and write the settings
-    with open(log_filepath, 'w') as log_file:
-        log_file.write("Program Settings:\n")
-        log_file.write(json.dumps(settings, indent=4))
-        log_file.write(json.dumps(alphabet, indent=4))
+        with open(log_filepath, 'w') as file:
+            yaml.dump(data, file)
+
 
     print("Settings log file created successfully at:", log_filepath)
 
 
-def save_models_epoch_loss(epoch, loss, recon_loss, kld_loss, lr_new_enc, KLD, settings, num_count):
+def save_models_epoch_loss(epoch, loss, recon_loss, val_loss, kld_loss, lr_new_enc, KLD, settings):
 
     gru_stack_size = settings['encoder']['gru_stack_size']
     gru_neurons_num = settings['encoder']['gru_neurons_num']
@@ -121,7 +119,7 @@ def save_models_epoch_loss(epoch, loss, recon_loss, kld_loss, lr_new_enc, KLD, s
 
 
 
-    out_dir = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + 'num_count' + str(num_count) + '/0'
+    out_dir = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/0'
     log_folder = out_dir  # Replace with the desired folder path
     log_filename = 'epoch_loss.txt'
 
@@ -136,8 +134,8 @@ def save_models_epoch_loss(epoch, loss, recon_loss, kld_loss, lr_new_enc, KLD, s
     
     with open(log_filepath, 'a') as file:
         if not file_exists:
-            file.write("epoch,loss,recon_loss,kld_loss,ratio\n")
-        file.write(f'{epoch},{loss},{recon_loss},{kld_loss},{ratio}\n')
+            file.write("epoch,loss,recon_loss,kld_loss,ratio,val_loss\n")
+        file.write(f'{epoch},{loss},{recon_loss},{kld_loss},{ratio},{val_loss}\n')
 
 
 class VAEEncoder(nn.Module):
@@ -243,9 +241,9 @@ class VAEDecoder(nn.Module):
         return decoded, hidden
 
 
-def train_model(vae_encoder, vae_decoder, data_train, data_valid,num_epochs, batch_size,
+def train_model(vae_encoder, vae_decoder, data_train, data_valid ,num_epochs, batch_size,
                 lr_enc, lr_dec, KLD_alpha,
-                sample_num, sample_len, alphabet, type_of_encoding, test_count, settings):
+                sample_num, sample_len, alphabet, settings):
     """
     Train the Variational Auto-Encoder
     """
@@ -292,7 +290,7 @@ def train_model(vae_encoder, vae_decoder, data_train, data_valid,num_epochs, bat
 
             
             # compute ELBO
-            loss, recon_loss, kld_loss = compute_elbo(batch, out_one_hot, mus, log_vars, KLD_alpha, test_count) ##switched the out_one_hot and the batch variables around
+            loss, recon_loss, kld_loss = compute_elbo(batch, out_one_hot, mus, log_vars, KLD_alpha) ##switched the out_one_hot and the batch variables around
             loss = loss 
             # perform back propogation
             optimizer_encoder.zero_grad()
@@ -312,16 +310,35 @@ def train_model(vae_encoder, vae_decoder, data_train, data_valid,num_epochs, bat
 
 
         if epoch % 50 == 0:
-            save_models(vae_encoder, vae_decoder, epoch, lr_enc, KLD_alpha, settings, alphabet, test_count)
+            save_models(vae_encoder, vae_decoder, epoch, lr_enc, KLD_alpha, settings, alphabet)
             
-                
 
-        save_models_epoch_loss(epoch, loss.item(), recon_loss, kld_loss, lr_enc, KLD_alpha, settings, test_count)
+        vae_encoder.eval()
+        vae_decoder.eval()
+        
+        inp_flat_one_hot = data_valid.flatten(start_dim=1)
+        inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
+        latent_points, mus, log_vars = vae_encoder(inp_flat_one_hot)
+        latent_points = latent_points.unsqueeze(0)
+
+        hidden = vae_decoder.init_hidden(batch_size=data_valid.shape[0])
+
+        out_one_hot = torch.zeros_like(data_valid, device=device)
+        for seq_index in range(data_valid.shape[1]):
+            out_one_hot_line, hidden = vae_decoder(latent_points, hidden)
+            out_one_hot[:, seq_index, :] = out_one_hot_line[0]
+
+        vae_encoder.train()
+        vae_decoder.train()
+
+        val_loss = validation_loss(data_valid, out_one_hot, mus)
+
+        save_models_epoch_loss(epoch, loss.item(), recon_loss, val_loss.item(), kld_loss, lr_enc, KLD_alpha, settings)
 
 
 
 
-def compute_elbo(x, x_hat, mus, log_vars, KLD_alpha, num_counts):
+def compute_elbo(x, x_hat, mus, log_vars, KLD_alpha):
 
 
     inp = x_hat.reshape(-1, x_hat.shape[2])
@@ -335,12 +352,20 @@ def compute_elbo(x, x_hat, mus, log_vars, KLD_alpha, num_counts):
 
 
     total_loss = recon_loss + (KLD_alpha * kld) 
-    #total_loss = latent_loss
-
 
 
     return total_loss, recon_loss, KLD_alpha * kld
 
+def validation_loss(x, x_hat, mus):
+
+
+    inp = x_hat.reshape(-1, x_hat.shape[2])
+    target = x.reshape(-1, x.shape[2]).argmax(1)
+    criterion = torch.nn.CrossEntropyLoss()
+    recon_loss = criterion(inp, target)
+
+
+    return recon_loss
 
 
 def get_selfie_and_smiles_encodings_for_dataset(file_path):
@@ -394,135 +419,75 @@ def remove_unrecognized_symbols(smiles_list):
     cleaned_smiles = [smiles.replace('\n', '') for smiles in smiles_list]
     return cleaned_smiles
 
+def data_init(settings, device):
+
+    file_name_smiles = settings['data']['smiles_file']
+    full_alphabet_set = set(settings['data']['full_alphabet_set'])
+    torch_seed = settings['data']['torch_seed']
+
+    torch.manual_seed(torch_seed)
+
+
+    encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = \
+        get_selfie_and_smiles_encodings_for_dataset(file_name_smiles)
+        
+    for letter in full_alphabet_set:
+        if letter not in encoding_alphabet:
+            encoding_alphabet.append(letter)
+
+    data = multiple_selfies_to_hot(encoding_list, largest_molecule_len, encoding_alphabet)
+
+    len_max_molec = data.shape[1]
+    len_alphabet = data.shape[2]
+    len_max_mol_one_hot = len_max_molec * len_alphabet
+
+    data = torch.tensor(data, dtype=torch.float).to(device)
+
+    train_valid_test_size = [0.8, 0.2, 0.0]
+
+    idx_train_val = int(len(data) * train_valid_test_size[0])
+    idx_val_test = idx_train_val + int(len(data) * train_valid_test_size[1])
+
+    data_train = data[0:idx_train_val]
+    data_valid = data[idx_train_val:idx_val_test]
+
+    return data_train, data_valid, len_max_molec, len_alphabet, len_max_mol_one_hot, encoding_alphabet
+
 
 def main():
-    content = open('logfile.dat', 'w')
-    content.close()
-    content = open('results.dat', 'w')
-    content.close()
-
-    pid = psutil.Process()
-    memory_info = pid.memory_info()
-    memory_usage_gb = memory_info.rss / (1024 ** 3)
-    print("Total Memory Used (at main):", memory_usage_gb, "GB")
-
     if os.path.exists("selfies_rnn.yml"):
         settings = yaml.safe_load(open("selfies_rnn.yml", "r"))
     else:
         print("Expected a file settings.yml but didn't find it.")
         return
 
-    print('--> Acquiring data...')
-    type_of_encoding = settings['data']['type_of_encoding']
-    file_name_smiles = settings['data']['smiles_file']
-    full_alphabet_set = set(settings['data']['full_alphabet_set'])
-
-
-
-
-    print('Finished acquiring data.')
-
-    if type_of_encoding == 0:
-        print('Representation: SMILES')
-        _, _, _, encoding_list, encoding_alphabet, largest_molecule_len = \
-            get_selfie_and_smiles_encodings_for_dataset(file_name_smiles)
-
-        print('--> Creating one-hot encoding...')
-
-
-        data = multiple_smile_to_hot(encoding_list, largest_molecule_len, encoding_alphabet)
-        print('Finished creating one-hot encoding.')
-
-    elif type_of_encoding == 1:
-        print('Representation: SELFIES')
-        encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = \
-            get_selfie_and_smiles_encodings_for_dataset(file_name_smiles)
-        
-        for letter in full_alphabet_set:
-            if letter not in encoding_alphabet:
-                encoding_alphabet.append(letter)
-
-        print('--> Creating one-hot encoding...')
-        data = multiple_selfies_to_hot(encoding_list, largest_molecule_len, encoding_alphabet)
-        del encoding_list
-
-        print('Finished creating one-hot encoding.')
-
-    else:
-        print("type_of_encoding not in {0, 1}.")
-        return
+    data_parameters = settings['data']
+    batch_size = data_parameters['batch_size']
+    save_path = data_parameters['save_path']
+    encoder_parameter = settings['encoder']
+    decoder_parameter = settings['decoder']
+    training_parameters = settings['training']
     
 
-    len_max_molec = data.shape[1]
-    len_alphabet = data.shape[2]
-    len_max_mol_one_hot = len_max_molec * len_alphabet
+
+    torch.cuda.empty_cache()
+    data_train, data_valid, len_max_molec, len_alphabet, len_max_mol_one_hot, encoding_alphabet = data_init(settings, device)
+    vae_encoder = VAEEncoder(in_dimension=len_max_mol_one_hot, **encoder_parameter).to(device)
+    vae_decoder = VAEDecoder(**decoder_parameter, out_dimension=len_alphabet).to(device)
 
 
+    print("start training")
+    train_model(**training_parameters,
+                vae_encoder=vae_encoder,
+                vae_decoder=vae_decoder,
+                batch_size=batch_size,
+                data_train=data_train,
+                data_valid=data_valid,
+                alphabet=encoding_alphabet,
+                sample_len=len_max_molec,
+                settings=settings 
+                )
 
-    print(encoding_alphabet)
-
-    num_tests = settings['data']['num_of_tests']
-
-    for i in range(num_tests):
-
-        test_count = i + 1
-
-        data_parameters = settings['data']
-        batch_size = data_parameters['batch_size']
-        save_path = data_parameters['save_path']
-        encoder_parameter = settings['encoder']
-        decoder_parameter = settings['decoder']
-        training_parameters = settings['training']
-
-        pid = psutil.Process()
-        memory_info = pid.memory_info()
-        memory_usage_gb = memory_info.rss / (1024 ** 3)
-        print("Total Memory Used (pre encoder + decoder):", memory_usage_gb, "GB")
-
-
-
-
-        vae_encoder = VAEEncoder(in_dimension=len_max_mol_one_hot, **encoder_parameter).to(device)
-        vae_decoder = VAEDecoder(**decoder_parameter, out_dimension=len_alphabet).to(device)
-
-        print('*' * 15, ': -->', device)
-
-
-        data = torch.tensor(data, dtype=torch.float).to(device)
-        train_valid_test_size = [0.8, 0.2, 0.0]
-        data = data[torch.randperm(data.size()[0])]
-        idx_train_val = int(len(data) * train_valid_test_size[0])
-        idx_val_test = idx_train_val + int(len(data) * train_valid_test_size[1])
-
-        data_train = data[0:idx_train_val]
-        data_valid = data[idx_train_val:idx_val_test]
-
-        del data
-
-        pid = psutil.Process()
-        memory_info = pid.memory_info()
-        memory_usage_gb = memory_info.rss / (1024 ** 3)
-        print("Total Memory Used:", memory_usage_gb, "GB")
-
-
-
-
-        print("start training")
-        train_model(**training_parameters,
-                    vae_encoder=vae_encoder,
-                    vae_decoder=vae_decoder,
-                    batch_size=batch_size,
-                    data_train=data_train,
-                    data_valid=data_valid,
-                    alphabet=encoding_alphabet,
-                    type_of_encoding=type_of_encoding,
-                    sample_len=len_max_molec,
-                    test_count = test_count,
-                    settings=settings 
-                    )
-
-        with open('COMPLETED', 'w') as content:
-            content.write('exit code: 0')
 
 
 if __name__ == '__main__':
