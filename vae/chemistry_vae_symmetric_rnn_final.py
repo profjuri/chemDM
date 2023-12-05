@@ -106,10 +106,6 @@ def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet):
         with open(log_filepath, 'w') as file:
             yaml.dump(data, file)
 
-
-    print("Settings log file created successfully at:", log_filepath)
-
-
 def save_models_epoch_loss(epoch, loss, recon_loss, val_loss, kld_loss, lr_new_enc, KLD, settings):
 
     gru_stack_size = settings['encoder']['gru_stack_size']
