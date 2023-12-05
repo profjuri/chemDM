@@ -64,10 +64,8 @@ import datetime
 timestr = datetime.datetime.now().strftime("%Y%m%d%H%M%S")  # Generate timestamp string
 
 import selfies as sf
-import data_loader
 
-
-from data_loader import \
+from chemdm.vae.data_loader import \
     multiple_selfies_to_hot, multiple_smile_to_hot
 
 rdBase.DisableLog('rdApp.error')
