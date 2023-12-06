@@ -4,15 +4,15 @@ Code for analyzing properties of molecular chemicals in the context of searches 
 
 ## Installation 
 
-We provide an environment specification file for `conda` or `mamba` users at `environment.yml`. With `conda`, an environment is created by `conda env create -f environment.yml`. With `micromamba` the `env` is omitted and a new environment is instead created with `micromamba create -f environment.yml`.
+We provide an environment specification file for `conda` or `mamba` users at `environment.yml`. With `conda`, an environment is created by `conda env create -f environment.yml`. With `micromamba` the `env` is omitted and a new environment is instead created with `micromamba create -f environment.yml`. This will create a new virtual environemnt named `chemdm`, as specified in the first line of `environment.yml`.
 
 From the top-level directory, you can do `pip install .`
 
 ## Usage
 
-The usage of this code is documented in `notebooks/demo_simulation.ipynb`. A detailed walkthrough of the functions available in this code is in `notebooks/demo_full_pipeline.ipynb`.
+The usage of this code is documented in `notebooks/MolecularProperties.ipynb`.
 
-A full list of potential inputs is documented in `settings/config.yaml` and you can edit `settings/inputdata.yaml` to reflect your desired simulation settings.
+Input data required to run your own simulations is available at _(give some additional context here)_.
 
 ## Citation
 
