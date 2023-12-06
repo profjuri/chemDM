@@ -1,51 +1,29 @@
-import importlib
 import os
-import numpy as np
 import pandas as pd
-import selfies
-import glob
-import torch
-import pandas as pd
-import numpy as np
-import torch
-import torch.nn as nn
-import random
 import time
-import math
-from rdkit import Chem
-from rdkit.Chem import rdFingerprintGenerator
-from rdkit import DataStructs
-import matplotlib.pyplot as plt
-import torch.distributions as dist
 import yaml
-from torch.optim import LBFGS
 
-import sys
-sys.path.insert(0, '../vae/')
+from chemdm.vae import chemistry_vae_symmetric_rnn_OG
 
-import chemistry_vae_symmetric_rnn_OG
-import data_loader
-
-
-from random import sample
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from torch.optim.lr_scheduler import StepLR
-
-
-
-
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-
-
-
-import torch.nn.functional as F
 
 class PropertyClassificationModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_hidden_dim, prop_pred_depth, prop_growth_factor, num_classes):
+        """
+        Parameters:
+            input_dim: int
+                dimension of the input vector (<- idk if that's a true statement, please check)
+            hidden_dim: int
+                dimension of the hidden layer
+            prop_hidden_dim: int
+                ?
+            num_classes: int
+                number of classes
+        """
         super(PropertyClassificationModel, self).__init__()
 
         self.ls_in = nn.Linear(input_dim, hidden_dim)
@@ -87,27 +65,36 @@ class PropertyClassificationModel(nn.Module):
         else:
             raise ValueError(f"Unknown activation function: {activation_name}")
 
-        
-
 def min_max_normalize(tensor):
+    """
+    Parameters:
+        tensor: [put the type in here. I think it has to be torch.tensor but idk]
+    
+    Returns:
+        rescaled and shifted version of tensor constrained to the range [0,1]
+    """
     min_val = torch.min(tensor)
     max_val = torch.max(tensor)
     normalized_tensor = (tensor - min_val) / (max_val - min_val)
     return normalized_tensor
 
-
-
-
-
 def stats(y_test, y_pred):
+    """
+    Parameters:
+        y_test: [type]
+            which of these is the truth?
+        y_pred: [type]
+            which of these is the prediction?
+    
+    Returns:
+        mean square error, mean absolute error, and the r2 test score of y_test compared to y_pred
+    """
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-
     return mse, mae, r2
 
 def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor, epochs, counter, mse, mae, r2, model, batch_size, loss_choice, factor_choice, weight_choice, patience_choice, lambda_choice, settings):
-    
     out_dir = settings['settings']['output_folder']
     log_folder = out_dir  # Replace with the desired folder path
     log_filename = 'results.txt'
@@ -127,17 +114,11 @@ def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation
             file.write("counter, lr, batch_size, input_dim, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor, epochs, loss_choice, factor_choice, patience_choice,weight_choice,lambda_choice, mse, mae, r2\n")
         file.write(f'{counter},{lr},{batch_size},{input_dim},{hidden_dim},{prop_hidden_dim},{prop_pred_activation},{prop_pred_dropout},{prop_pred_depth},{prop_growth_factor},{epochs},{loss_choice},{factor_choice},{patience_choice},{weight_choice},{lambda_choice},{mse},{mae},{r2}\n')
 
-
 def save_r2_loss(epoch, r2, train_r2, loss, settings):
 
     out_dir = settings['settings']['output_folder']
     log_folder = out_dir  # Replace with the desired folder path
     log_filename = 'r2_loss.txt'
-
-
-    log_folder = out_dir  # Replace with the desired folder path
-    log_filename = 'r2_loss.txt'
-
     log_filepath = os.path.join(log_folder, log_filename)
 
     # Create the log folder if it doesn't exist
@@ -151,13 +132,6 @@ def save_r2_loss(epoch, r2, train_r2, loss, settings):
         if not file_exists:
             file.write("epoch,loss,val_r2,train_r2\n")
         file.write(f'{epoch},{loss},{r2},{train_r2}\n')
-
-
-
-
-
-
-
 
 def main():
     if os.path.exists("classifier.yml"):

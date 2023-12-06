@@ -1,0 +1,19 @@
+# virtual environment file for chemdm
+
+name: chemdm
+
+dependencies:
+     - python=3.10
+     - pip
+     - numpy
+     - scipy
+     - jupyter
+     - ipython
+     - pandas
+     - pyyaml
+     - pytorch
+     - scikit-learn
+     - matplotlib
+     - selfies
+     - rdkit
+     - levenshtein
