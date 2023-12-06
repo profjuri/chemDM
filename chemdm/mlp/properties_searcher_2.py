@@ -1,14 +1,48 @@
+import importlib
 import os
+import numpy as np
 import pandas as pd
+import selfies
+import glob
 import torch
-import yaml
 
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
+import pandas as pd
+import numpy as np
+import torch
 import torch.nn as nn
+import random
+import time
+import math
+from rdkit import Chem
+from rdkit.Chem import rdFingerprintGenerator
+from rdkit import DataStructs
+import matplotlib.pyplot as plt
+import torch.distributions as dist
+import yaml
+from torch.optim import LBFGS
+sys.path.insert(0, '../vae/')
+
+import chemistry_vae_symmetric_rnn_final
+import data_loader
+from chemistry_vae_symmetric_rnn_final import VAEEncoder
+
+from random import sample
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from torch.optim.lr_scheduler import StepLR
+
+import torch
+
+
+
+
+
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from chemdm.vae import chemistry_vae_symmetric_rnn_final
+
 
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
@@ -39,6 +73,8 @@ class PropertyRegressionModel(nn.Module):
         x = self.ls_in(x)
         x = self.activation(x)
 
+
+        
         for layer in self.layers:
             x = layer(x)
             x = self.activation(x)
@@ -69,6 +105,10 @@ def min_max_normalize(tensor):
     normalized_tensor = (tensor - min_val) / (max_val - min_val)
     return normalized_tensor
 
+
+
+
+
 def stats(y_test, y_pred):
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
@@ -88,7 +128,7 @@ def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
     
-    torch.save(model, out_dir + '/' + str(r2))
+    torch.save(model.state_dict(), out_dir + '/' + str(r2) + '.pt')
 
     file_exists = os.path.isfile(log_filepath)
     
@@ -101,6 +141,10 @@ def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation
 def save_r2_loss(epoch, r2, train_r2, loss, settings):
 
     out_dir = settings['settings']['output_folder']
+    log_folder = out_dir  # Replace with the desired folder path
+    log_filename = 'r2_loss.txt'
+
+
     log_folder = out_dir  # Replace with the desired folder path
     log_filename = 'r2_loss.txt'
 
@@ -128,40 +172,46 @@ def deviation_loss(properties_tensor, props_test, devs):
     
 def data_init(settings, device):
 
-    smiles_file = settings['settings']['smiles_file']
 
-    print('smiles file:', smiles_file)
-    selfies_alphabet = settings['settings']['selfies_alphabet']
+    smiles_file = settings['settings']['smiles_file']
     vae_file = settings['settings']['vae_file']
     vae_epoch = settings['settings']['vae_epoch']
+    torch_seed = settings['settings']['torch_seed']
     batch_size = settings['hyperparameters']['batch_size']
 
-    encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = chemistry_vae_symmetric_rnn_final.get_selfie_and_smiles_encodings_for_dataset(smiles_file)
-    data = chemistry_vae_symmetric_rnn_final.multiple_selfies_to_hot(encoding_list, largest_molecule_len, selfies_alphabet)
+    vae_settings = yaml.safe_load(open(str(vae_file) + "settings/" + "settings.yml", "r"))
 
-    file_to_load =  str(vae_file)
-    training_file_nameE = str(vae_epoch) + "/E"
-    training_file_nameD = str(vae_epoch) + "/D"
+    encoder_parameter = vae_settings['encoder']
+    selfies_alphabet = vae_settings['alphabet']
+    vae_weights_path = str(vae_file) + str(vae_epoch) + "/E.pt"
 
-    vae_encoder = torch.load(file_to_load + training_file_nameE, map_location=device)
+    encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = chemistry_vae_symmetric_rnn_OG.get_selfie_and_smiles_encodings_for_dataset(smiles_file)
+    data = chemistry_vae_symmetric_rnn_OG.multiple_selfies_to_hot(encoding_list, largest_molecule_len, selfies_alphabet)
+    len_max_molec = data.shape[1]
+    len_alphabet = data.shape[2]
+
+
+    vae_encoder = VAEEncoder(in_dimension=(len_max_molec*len_alphabet), **encoder_parameter).to(device)
+    model_weights = torch.load(vae_weights_path)
+    vae_encoder.load_state_dict(model_weights)
+
 
     train_valid_test_size = [0.8, 0.2, 0.0]
     idx_train_val = int(len(data) * train_valid_test_size[0])
     idx_val_test = idx_train_val + int(len(data) * train_valid_test_size[1])
 
+    torch.manual_seed(torch_seed)
     data = torch.tensor(data, dtype=torch.float).to(device)
-
+    rand_perms = torch.randperm(data.size()[0])
+    data = data[rand_perms]
     inp_flat_one_hot = data.flatten(start_dim=1)
     inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
 
 
-
-    latent_points, mus, log_vars = vae_encoder(inp_flat_one_hot)
+    _, mus, _ = vae_encoder(inp_flat_one_hot)
 
     lpoints_train = mus[0:idx_train_val]
     lpoints_valid = mus[idx_train_val:idx_val_test]
-
-    num_batches_train = int(len(lpoints_train) / batch_size)
 
 ####
 
@@ -171,6 +221,7 @@ def data_init(settings, device):
     properties_df = my_file.drop(columns=['smiles']) ##drop all smiles from the properties df
     properties_array = properties_df.to_numpy() ##convert the df to numpy array
     properties_tensor = torch.tensor(properties_array,dtype=torch.float32)
+    properties_tensor = properties_tensor[rand_perms]
 
 
     train_properties_tensor = properties_tensor[0:idx_train_val]
@@ -251,6 +302,8 @@ def main():
     learning_rate_patience = settings['hyperparameters']['learning_rate_patience']
     epochs = settings['hyperparameters']['epochs']
     weight_choice = settings['hyperparameters']['weight_choice']
+
+
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
