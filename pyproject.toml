@@ -24,7 +24,6 @@ matplotlib = "^3.8"
 pysmiles = "^1.1"
 selfies = "^2.1"
 rdkit = "^2023.9"
-levenshtein = "^0.23"
 #deepchem = "^2.5"
 
 [tool.dev-dependencies]

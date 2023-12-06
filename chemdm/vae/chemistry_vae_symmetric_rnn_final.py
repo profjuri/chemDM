@@ -37,26 +37,14 @@ information:
 import os
 import sys
 import time
-import random
-import pickle
-import json
-import psutil
 
 import numpy as np
 import pandas as pd
 import torch
 import yaml
 from rdkit import rdBase
-from rdkit.Chem import MolFromSmiles
 from torch import nn
-import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.optim.lr_scheduler import StepLR
-import Levenshtein
-import torch.distributions as dist
-from scipy.stats import pearsonr
-import torch.nn.functional as F
-from torch.autograd import gradcheck
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:25"
 
