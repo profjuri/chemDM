@@ -9,6 +9,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from chemdm.vae import chemistry_vae_symmetric_rnn_final
+from chemistry_vae_symmetric_rnn_final import VAEEnecoder
 
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
