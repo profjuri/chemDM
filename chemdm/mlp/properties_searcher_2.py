@@ -1,48 +1,14 @@
-import importlib
 import os
-import numpy as np
 import pandas as pd
-import selfies
-import glob
 import torch
-
-import pandas as pd
-import numpy as np
-import torch
-import torch.nn as nn
-import random
-import time
-import math
-from rdkit import Chem
-from rdkit.Chem import rdFingerprintGenerator
-from rdkit import DataStructs
-import matplotlib.pyplot as plt
-import torch.distributions as dist
 import yaml
-from torch.optim import LBFGS
-sys.path.insert(0, '../vae/')
 
-import chemistry_vae_symmetric_rnn_final
-import data_loader
-from chemistry_vae_symmetric_rnn_final import VAEEncoder
-
-from random import sample
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from torch.optim.lr_scheduler import StepLR
 
-import torch
-
-
-
-
-
-
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-
+from chemdm.vae import chemistry_vae_symmetric_rnn_final
 
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
