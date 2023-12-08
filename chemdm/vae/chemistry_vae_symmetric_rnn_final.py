@@ -75,8 +75,8 @@ def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet):
 
     out_dir = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/{}'.format(epoch) 
     _make_dir(out_dir)
-    torch.save(encoder.state_dict(), '{}/E'.format(out_dir))
-    torch.save(decoder.state_dict(), '{}/D'.format(out_dir))
+    torch.save(encoder.state_dict(), '{}/E.pt'.format(out_dir))
+    torch.save(decoder.state_dict(), '{}/D.pt'.format(out_dir))
 
     settings_folder = str(save_path) + 'stack_size' + str(gru_stack_size)  + 'neurons_num' + str(gru_neurons_num) + '_l_dim' + str(latent_dim) + '/settings'
 
@@ -91,6 +91,7 @@ def save_models(encoder, decoder, epoch, lr_new_enc, KLD, settings, alphabet):
 
         with open(log_filepath, 'w') as file:
             yaml.dump(data, file)
+
 
 def save_models_epoch_loss(epoch, loss, recon_loss, val_loss, kld_loss, lr_new_enc, KLD, settings):
 
@@ -407,7 +408,7 @@ def data_init(settings, device):
     full_alphabet_set = set(settings['data']['full_alphabet_set'])
     torch_seed = settings['data']['torch_seed']
 
-    torch.manual_seed(torch_seed)
+    
 
 
     encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = \
@@ -423,7 +424,10 @@ def data_init(settings, device):
     len_alphabet = data.shape[2]
     len_max_mol_one_hot = len_max_molec * len_alphabet
 
+
+    torch.manual_seed(torch_seed)
     data = torch.tensor(data, dtype=torch.float).to(device)
+    data = data[torch.randperm(data.size()[0])]
 
     train_valid_test_size = [0.8, 0.2, 0.0]
 
