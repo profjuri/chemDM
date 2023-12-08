@@ -63,16 +63,6 @@ class PropertyRegressionModel(nn.Module):
             return nn.ELU()
         else:
             raise ValueError(f"Unknown activation function: {activation_name}")
-        
-
-def min_max_normalize(tensor):
-    min_val = torch.min(tensor)
-    max_val = torch.max(tensor)
-    normalized_tensor = (tensor - min_val) / (max_val - min_val)
-    return normalized_tensor
-
-
-
 
 
 def stats(y_test, y_pred):
