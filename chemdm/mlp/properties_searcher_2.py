@@ -142,8 +142,8 @@ def data_init(settings, device):
     selfies_alphabet = vae_settings['alphabet']
     vae_weights_path = str(vae_file) + str(vae_epoch) + "/E.pt"
 
-    encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = chemistry_vae_symmetric_rnn_OG.get_selfie_and_smiles_encodings_for_dataset(smiles_file)
-    data = chemistry_vae_symmetric_rnn_OG.multiple_selfies_to_hot(encoding_list, largest_molecule_len, selfies_alphabet)
+    encoding_list, encoding_alphabet, largest_molecule_len, _, _, _ = chemistry_vae_symmetric_rnn_final.get_selfie_and_smiles_encodings_for_dataset(smiles_file)
+    data = chemistry_vae_symmetric_rnn_final.multiple_selfies_to_hot(encoding_list, largest_molecule_len, selfies_alphabet)
     len_max_molec = data.shape[1]
     len_alphabet = data.shape[2]
 
