@@ -1,3 +1,9 @@
+"""
+information:
+    ML framework: pytorch
+    chemistry framework: RDKit
+"""
+
 import os
 import pandas as pd
 import torch
