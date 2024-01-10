@@ -3,16 +3,26 @@ import pandas as pd
 import torch
 import yaml
 
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
 import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from chemdm.vae import chemistry_vae_symmetric_rnn_final
-from chemistry_vae_symmetric_rnn_final import VAEEnecoder
+import chemistry_vae_symmetric_rnn_final
+from chemistry_vae_symmetric_rnn_final import VAEEncoder
 
 class PropertyRegressionModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor):
+
+        '''Multi layer perceptron'''
+
+        '''Arguments:
+                        input_dim: the latent space dimension
+                        hidden: the size of the first hidden layer
+                        prop_pred_activation: the activation function used
+                        prop_pred_dropout: the dropout coefficient
+                        prop_pred_depth: the number of hidden layers
+                        prop_growth_factor: the coefficient each hidden layer number is multiplied by. E.g., hidden = 256, prop_growth_factor = 0.5, second layer = 128'''
+
+
         super(PropertyRegressionModel, self).__init__()
 
         self.ls_in = nn.Linear(input_dim, hidden_dim)
@@ -37,6 +47,15 @@ class PropertyRegressionModel(nn.Module):
 
 
     def forward(self, x):
+
+        '''Forward pass through the MLP'''
+
+        '''Arguments:
+                        x: transformed latent vectors'''
+
+        '''Outputs:
+                        reg_prop_out: the predicted property output'''
+
         x = self.ls_in(x)
         x = self.activation(x)
 
@@ -52,6 +71,14 @@ class PropertyRegressionModel(nn.Module):
         return reg_prop_out
 
     def _get_activation(self, activation_name):
+
+        '''Gives you the activation layer'''
+
+        '''Arguments:
+                        activation_name: the name of the activation functions shown below'''
+
+
+
         if activation_name == 'silu':
             return nn.SiLU()
         elif activation_name == 'sigmoid':
@@ -67,14 +94,56 @@ class PropertyRegressionModel(nn.Module):
 
 
 def stats(y_test, y_pred):
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
 
-    return mse, mae, r2
+    '''Statistics function that gives you the mse, mae and r^2'''
 
-def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor, epochs, mse, mae, r2, model, batch_size, loss_choice, factor_choice, weight_choice, patience_choice, lambda_choice, settings):
+    '''Arguments:
+                    y_test: the true value of whatever property you're analysing
+                    y_pred: the prediction value of whatever property you're analysing'''
     
+    '''Outputs:
+                    MSE: mean squared error
+                    MAE: mean absolute error
+                    r2: the r squared coefficient'''
+
+    MAE = torch.abs(y_pred - y_test).sum()
+    MSE = ((y_pred - y_test)*(y_pred - y_test)).sum()
+
+    SSR = torch.sum((y_pred-y_test.mean()).pow(2))
+    SST = torch.sum((y_test-y_test.mean()).pow(2))
+
+    r2 = 1 - SSR/SST
+
+    return MSE, MAE, r2
+
+def save_params(mse, mae, r2, model, settings):
+
+    '''Save the model object and also the current parameters defining the model'''
+
+    '''Arguments:
+                    mse: the mean squared error of the current model predictions
+                    mae: the mean absolute error of the current model predictions
+                    r2: the r squared value of the current model predictions
+                    model: the mlp object
+                    settings: the settings defined by the .yml file'''
+    
+    input_dim = settings['settings']['input_dim']
+    lr = settings['hyperparameters']['lr']
+    batch_size = settings['hyperparameters']['batch_size']
+    hidden_dim = settings['hyperparameters']['hidden_dim']
+    prop_hidden_dim = settings['hyperparameters']['prop_hidden_dim']
+    prop_pred_activation = settings['hyperparameters']['prop_pred_activation']
+    prop_pred_dropout = settings['hyperparameters']['dropout']
+    prop_pred_depth = settings['hyperparameters']['depth']
+    prop_growth_factor = settings['hyperparameters']['growth']
+    loss_choice = settings['hyperparameters']['loss_choice']
+    factor_choice = settings['hyperparameters']['learning_rate_factor']
+    patience_choice = settings['hyperparameters']['learning_rate_patience']
+    epochs = settings['hyperparameters']['epochs']
+    weight_choice = settings['hyperparameters']['weight_choice']
+
+
+
     out_dir = settings['settings']['output_folder']
     log_folder = out_dir  # Replace with the desired folder path
     log_filename = 'results.txt'
@@ -91,11 +160,20 @@ def save_params(input_dim, lr, hidden_dim, prop_hidden_dim, prop_pred_activation
     
     with open(log_filepath, 'a') as file:
         if not file_exists:
-            file.write(" lr, batch_size, input_dim, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor, epochs, loss_choice, factor_choice, patience_choice,weight_choice,lambda_choice, mse, mae, r2\n")
-        file.write(f'{lr},{batch_size},{input_dim},{hidden_dim},{prop_hidden_dim},{prop_pred_activation},{prop_pred_dropout},{prop_pred_depth},{prop_growth_factor},{epochs},{loss_choice},{factor_choice},{patience_choice},{weight_choice},{lambda_choice},{mse},{mae},{r2}\n')
+            file.write(" lr, batch_size, input_dim, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor, epochs, loss_choice, factor_choice, patience_choice,weight_choice, mse, mae, r2\n")
+        file.write(f'{lr},{batch_size},{input_dim},{hidden_dim},{prop_hidden_dim},{prop_pred_activation},{prop_pred_dropout},{prop_pred_depth},{prop_growth_factor},{epochs},{loss_choice},{factor_choice},{patience_choice},{weight_choice},{mse},{mae},{r2}\n')
 
 
 def save_r2_loss(epoch, r2, train_r2, loss, settings):
+
+    '''This function saves the epoch, total training loss, trainin reconstruction loss, training kld loss and the total validation loss to a .txt file'''
+
+    '''Arguments:
+                    epoch: the epoch currently being saved
+                    r2: the r squared value of the validation set
+                    train_r2: the r squared value of the training set
+                    loss: the current loss of the model
+                    settings: settings defined by the .yml file'''
 
     out_dir = settings['settings']['output_folder']
     log_folder = out_dir  # Replace with the desired folder path
@@ -119,15 +197,20 @@ def save_r2_loss(epoch, r2, train_r2, loss, settings):
             file.write("epoch,loss,val_r2,train_r2\n")
         file.write(f'{epoch},{loss},{r2},{train_r2}\n')
 
-
-def deviation_loss(properties_tensor, props_test, devs):
-
-    prop_dev = (torch.abs(props_test) - torch.abs(properties_tensor))/torch.std(properties_tensor)
-    dev_loss = torch.mean(torch.abs(torch.abs(prop_dev) - torch.abs(devs)))
-
-    return dev_loss
     
 def data_init(settings, device):
+
+    '''Data initialisation'''
+
+    '''Arguments:
+                    settings: settings defined by the corresponding .yml file
+                    device: the device being used to store data'''
+    
+    '''Outputs:
+                    train_properties_tensor: a tensor containing the properties of the training set
+                    valid_properties_tensor: a tensor containing the properties of the validation set
+                    lpoints_train: a tensor containing the latent vectors of the training set
+                    lpoiints_valid: a tensor containing the latent vectors of the validation set'''
 
 
     smiles_file = settings['settings']['smiles_file']
@@ -186,7 +269,24 @@ def data_init(settings, device):
 
     return train_properties_tensor, valid_properties_tensor, lpoints_train, lpoints_valid
 
-def train_model(num_batches_train, batch_size, lpoints_train, train_properties_tensor, optimizer, model, loss_function, scheduler):
+def train_model(num_batches_train, batch_size, lpoints_train, train_properties_tensor, optimizer, model, loss_function):
+
+    '''Train the multi-layered perceptron'''
+
+    '''Arguments:
+                    num_batches_train: the number of batches to be used during training
+                    batch_size: the size of each batch
+                    lpoints_train: the training set of latent vectors
+                    train_properties_tensor: the training set of the properties being used for prediction
+                    optimizer: the optimizer used to modify the weights after a back propagation
+                    model: the multi-layered perceptron object
+                    loss_function: the loss function being used, e.g., MSELoss'''
+    
+    '''Outputs:
+                    model: the modified MLP
+                    total_loss: the total trainin loss
+                    r2_train: the training r squared
+                    loss: the loss on the final batch iteration'''
 
     total_loss = 0.0
     r2_train = 0.0
@@ -207,8 +307,8 @@ def train_model(num_batches_train, batch_size, lpoints_train, train_properties_t
         loss.backward()
         optimizer.step()
                 
-        y_pred = predictions.detach().cpu().numpy() 
-        y_test = batch_props.detach().cpu().numpy()
+        y_pred = predictions.detach()
+        y_test = batch_props.detach()
 
         mse, mae, r2 = stats(y_test, y_pred) 
 
@@ -222,11 +322,23 @@ def train_model(num_batches_train, batch_size, lpoints_train, train_properties_t
 
 def valdiation(model, lpoints_valid, valid_properties_tensor):
 
+    '''Function to provide statistical metrics for the validation set'''
+
+    '''Arguments:
+                    model: the multi-layered perceptron object
+                    lpoints_valid: the latent vector validation set
+                    valid_properties_tensor: tensor containing the latent vectors of the validation set'''
+    
+    '''Outputs:
+                    mse: mean squared error
+                    mae: mean absolute error
+                    r2: the r squared coefficient'''
+
     with torch.no_grad():
         test_predictions = model(lpoints_valid.squeeze())
 
-    y_pred = test_predictions.cpu().numpy() 
-    y_test = valid_properties_tensor.cpu().numpy() 
+    y_pred = test_predictions.detach()
+    y_test = valid_properties_tensor.detach()
 
 
     mse, mae, r2 = stats(y_test, y_pred)
@@ -298,7 +410,7 @@ def main():
 
     for epoch in range(epochs):
 
-        model, total_loss, r2_train, loss = train_model(num_batches_train, batch_size, lpoints_train2, train_properties_tensor2, optimizer, model, loss_function, scheduler)
+        model, total_loss, r2_train, loss = train_model(num_batches_train, batch_size, lpoints_train2, train_properties_tensor2, optimizer, model, loss_function)
 
         avg_loss = total_loss / num_batches_train
         avg_r2 = r2_train / num_batches_train
@@ -315,6 +427,6 @@ def main():
         print("Current r2:", r2, "Best r2:", bestr2)
         if r2 > 0.91:
             bestr2 = r2
-            save_params(input_dim, learning_rate, hidden_dim, prop_hidden_dim, prop_pred_activation, prop_pred_dropout, prop_pred_depth, prop_growth_factor, epochs, mse, mae, r2, model, batch_size, loss_choice, learning_rate_factor, weight_choice, learning_rate_patience, lambda_choice, settings)
+            save_params(mse, mae, r2, model, settings)
         save_r2_loss(epoch, r2, avg_r2, avg_loss, settings)
 
