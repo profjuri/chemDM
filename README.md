@@ -12,7 +12,7 @@ From the top-level directory, you can do `pip install .`
 
 The usage of this code is documented in `notebooks/MolecularProperties.ipynb`.
 
-Input data required to run your own simulations is available at _(give some additional context here)_.
+Input data required to run your own simulations is available at datasets/.DS_Store. Input files should be .csv/.txt and the column containing the SMILES representations should be labelled 'smiles'.
 
 ## Citation
 
