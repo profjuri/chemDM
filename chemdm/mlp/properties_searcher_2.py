@@ -15,12 +15,12 @@ class PropertyRegressionModel(nn.Module):
         '''Multi layer perceptron'''
 
         '''Arguments:
-                        input_dim: the latent space dimension
-                        hidden: the size of the first hidden layer
-                        prop_pred_activation: the activation function used
-                        prop_pred_dropout: the dropout coefficient
-                        prop_pred_depth: the number of hidden layers
-                        prop_growth_factor: the coefficient each hidden layer number is multiplied by. E.g., hidden = 256, prop_growth_factor = 0.5, second layer = 128'''
+                        input_dim: the latent space dimension (int)
+                        hidden: the size of the first hidden layer (int)
+                        prop_pred_activation: the activation function used (str)
+                        prop_pred_dropout: the dropout coefficient (float)
+                        prop_pred_depth: the number of hidden layers (int)
+                        prop_growth_factor: the coefficient each hidden layer number is multiplied by. E.g., hidden = 256, prop_growth_factor = 0.5, second layer = 128 (float)'''
 
 
         super(PropertyRegressionModel, self).__init__()
@@ -51,10 +51,10 @@ class PropertyRegressionModel(nn.Module):
         '''Forward pass through the MLP'''
 
         '''Arguments:
-                        x: transformed latent vectors'''
+                        x: transformed latent vectors (Pytorch float tensor)'''
 
         '''Outputs:
-                        reg_prop_out: the predicted property output'''
+                        reg_prop_out: the predicted property output (Pytorch floattensor)'''
 
         x = self.ls_in(x)
         x = self.activation(x)
@@ -75,7 +75,7 @@ class PropertyRegressionModel(nn.Module):
         '''Gives you the activation layer'''
 
         '''Arguments:
-                        activation_name: the name of the activation functions shown below'''
+                        activation_name: the name of the activation functions shown below (str)'''
 
 
 
@@ -98,13 +98,13 @@ def stats(y_test, y_pred):
     '''Statistics function that gives you the mse, mae and r^2'''
 
     '''Arguments:
-                    y_test: the true value of whatever property you're analysing
-                    y_pred: the prediction value of whatever property you're analysing'''
+                    y_test: the true value of whatever property you're analysing (Pytorch float tensor)
+                    y_pred: the prediction value of whatever property you're analysing (Pytorch float tensor)'''
     
     '''Outputs:
-                    MSE: mean squared error
-                    MAE: mean absolute error
-                    r2: the r squared coefficient'''
+                    MSE: mean squared error (float)
+                    MAE: mean absolute error (float)
+                    r2: the r squared coefficient (float)'''
 
     MAE = torch.abs(y_pred - y_test).sum()
     MSE = ((y_pred - y_test)*(y_pred - y_test)).sum()
@@ -121,11 +121,11 @@ def save_params(mse, mae, r2, model, settings):
     '''Save the model object and also the current parameters defining the model'''
 
     '''Arguments:
-                    mse: the mean squared error of the current model predictions
-                    mae: the mean absolute error of the current model predictions
-                    r2: the r squared value of the current model predictions
-                    model: the mlp object
-                    settings: the settings defined by the .yml file'''
+                    mse: the mean squared error of the current model predictions (float)
+                    mae: the mean absolute error of the current model predictions (float)
+                    r2: the r squared value of the current model predictions (float)
+                    model: the mlp object (PropertyRegressionModel object)
+                    settings: the settings defined by the .yml file (dict)'''
     
     input_dim = settings['settings']['input_dim']
     lr = settings['hyperparameters']['lr']
@@ -149,7 +149,6 @@ def save_params(mse, mae, r2, model, settings):
     log_filename = 'results.txt'
 
     log_filepath = os.path.join(log_folder, log_filename)
-    #torch.save(model, str(out_dir) + str(r2))
     # Create the log folder if it doesn't exist
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
@@ -169,11 +168,11 @@ def save_r2_loss(epoch, r2, train_r2, loss, settings):
     '''This function saves the epoch, total training loss, trainin reconstruction loss, training kld loss and the total validation loss to a .txt file'''
 
     '''Arguments:
-                    epoch: the epoch currently being saved
-                    r2: the r squared value of the validation set
-                    train_r2: the r squared value of the training set
-                    loss: the current loss of the model
-                    settings: settings defined by the .yml file'''
+                    epoch: the epoch currently being saved (int)
+                    r2: the r squared value of the validation set (float)
+                    train_r2: the r squared value of the training set (float)
+                    loss: the current loss of the model (float)
+                    settings: settings defined by the .yml file (dict)'''
 
     out_dir = settings['settings']['output_folder']
     log_folder = out_dir  # Replace with the desired folder path
@@ -203,14 +202,14 @@ def data_init(settings, device):
     '''Data initialisation'''
 
     '''Arguments:
-                    settings: settings defined by the corresponding .yml file
-                    device: the device being used to store data'''
+                    settings: settings defined by the corresponding .yml file (dict)
+                    device: the device being used to store data (str)'''
     
     '''Outputs:
-                    train_properties_tensor: a tensor containing the properties of the training set
-                    valid_properties_tensor: a tensor containing the properties of the validation set
-                    lpoints_train: a tensor containing the latent vectors of the training set
-                    lpoiints_valid: a tensor containing the latent vectors of the validation set'''
+                    train_properties_tensor: a tensor containing the properties of the training set (Pytorch float tensor)
+                    valid_properties_tensor: a tensor containing the properties of the validation set (Pytorch float tensor)
+                    lpoints_train: a tensor containing the latent vectors of the training set (Pytorch float tensor)
+                    lpoiints_valid: a tensor containing the latent vectors of the validation set (Pytorch float tensor)'''
 
 
     smiles_file = settings['settings']['smiles_file']
@@ -274,19 +273,19 @@ def train_model(num_batches_train, batch_size, lpoints_train, train_properties_t
     '''Train the multi-layered perceptron'''
 
     '''Arguments:
-                    num_batches_train: the number of batches to be used during training
-                    batch_size: the size of each batch
-                    lpoints_train: the training set of latent vectors
-                    train_properties_tensor: the training set of the properties being used for prediction
-                    optimizer: the optimizer used to modify the weights after a back propagation
-                    model: the multi-layered perceptron object
-                    loss_function: the loss function being used, e.g., MSELoss'''
+                    num_batches_train: the number of batches to be used during training (int)
+                    batch_size: the size of each batch (int)
+                    lpoints_train: the training set of latent vectors (Pytorch float tensor)
+                    train_properties_tensor: the training set of the properties being used for prediction (Pytorch float tensor)
+                    optimizer: the optimizer used to modify the weights after a back propagation (Pytorch torch.optim object)
+                    model: the multi-layered perceptron object (PropertyRegressionModel object)
+                    loss_function: the loss function being used, e.g., MSELoss (str)'''
     
     '''Outputs:
-                    model: the modified MLP
-                    total_loss: the total trainin loss
-                    r2_train: the training r squared
-                    loss: the loss on the final batch iteration'''
+                    model: the modified MLP (PropertyRegressionModel object)
+                    total_loss: the total trainin loss (float)
+                    r2_train: the training r squared (float)
+                    loss: the loss on the final batch iteration (PyTorch float tensor)'''
 
     total_loss = 0.0
     r2_train = 0.0
@@ -325,14 +324,14 @@ def valdiation(model, lpoints_valid, valid_properties_tensor):
     '''Function to provide statistical metrics for the validation set'''
 
     '''Arguments:
-                    model: the multi-layered perceptron object
-                    lpoints_valid: the latent vector validation set
-                    valid_properties_tensor: tensor containing the latent vectors of the validation set'''
+                    model: the multi-layered perceptron object (PropertyRegressionModel object)
+                    lpoints_valid: the latent vector validation set (Pytorch float tensor)
+                    valid_properties_tensor: tensor containing the latent vectors of the validation set (Pytorch float tensor)'''
     
     '''Outputs:
-                    mse: mean squared error
-                    mae: mean absolute error
-                    r2: the r squared coefficient'''
+                    mse: mean squared error (float)
+                    mae: mean absolute error (float)
+                    r2: the r squared coefficient (float)'''
 
     with torch.no_grad():
         test_predictions = model(lpoints_valid.squeeze())
@@ -429,4 +428,3 @@ def main():
             bestr2 = r2
             save_params(mse, mae, r2, model, settings)
         save_r2_loss(epoch, r2, avg_r2, avg_loss, settings)
-
