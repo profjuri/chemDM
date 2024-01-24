@@ -132,7 +132,6 @@ def save_params(epoch, model, settings):
     os.makedirs(out_dir_epoch)
     
     torch.save(model.state_dict(), '{}/model.pt'.format(out_dir_epoch))
-    torch.save(model, '{}/full_model.pt'.format(out_dir_epoch))
 
     settings_folder = out_dir + '/settings'
 
