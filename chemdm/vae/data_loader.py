@@ -68,7 +68,6 @@ def selfies_to_hot(selfie, largest_selfie_len, alphabet):
 def selfies_to_hot(selfie, largest_selfie_len, alphabet):
     """Go from a single selfies string to a one-hot encoding.
     """
-
     symbol_to_int = dict((c, i) for i, c in enumerate(alphabet))
 
     # Pad with [nop] to reach the desired length
@@ -90,8 +89,9 @@ def selfies_to_hot(selfie, largest_selfie_len, alphabet):
     blank_space = [0] * len(alphabet)
     for _ in range(15):
         onehot_encoded.append(blank_space)
+        
 
-    return integer_encoded, np.array(onehot_encoded)
+    return integer_encoded, np.array(onehot_encoded, dtype=np.float64)
 
 
 def multiple_selfies_to_hot(selfies_list, largest_molecule_len, alphabet):
