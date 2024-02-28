@@ -129,7 +129,19 @@ def fingerprint_compare(fpgen, generated_fingerprints, list2):
 
 def gen_list_processing(fpgen, generated_list):
 
-    generated_fingerprints = [fpgen.GetFingerprint(Chem.MolFromSmiles(x)).ToBitString() for x in generated_list]
+    generated_fingerprints = []
+
+    for x in generated_list:
+
+        try:
+            mol = Chem.MolFromSmiles(x)
+            fingerprint = fpgen.GetFingerprint(mol).ToBitString()
+            generated_fingerprints.append(fingerprint)
+        except:
+            pass
+
+
+    #generated_fingerprints = [fpgen.GetFingerprint(Chem.MolFromSmiles(x)).ToBitString() for x in generated_list]
     _, idx = np.unique(generated_fingerprints, return_index=True)
     generated_fingerprints = np.unique(generated_fingerprints)
 
@@ -141,7 +153,20 @@ def gen_list_processing(fpgen, generated_list):
     long_ratio = len(long_smiles)/len(generated_fingerprints)
 
     return generated_fingerprints, long_ratio
+
+def remove_unrecognized_symbols(smiles_list):
+
+    '''Removes blank spaces from the SMILES encodings'''
+
+    '''Arguments:
+                    smiles_list: the list of SMILES encodings (list)'''
     
+    '''Outputs:
+                    cleaned_smiles: the cleaned SMILES encodings list (list)'''
+
+    cleaned_smiles = [smiles.replace('\n', '') for smiles in smiles_list]
+
+    return cleaned_smiles
 
 
 
@@ -189,9 +214,12 @@ def main():
 
         filtered_list = [x for x in final_smiles_list if x is not None]
         generated_list = list(set(filtered_list))
+        generated_list = list(filter(None, generated_list))
 
 
+        #generated_list = remove_unrecognized_symbols(generated_list)
         fpgen = rdFingerprintGenerator.GetRDKitFPGenerator(fpSize=4096)
+
 
         generated_fingerprints, long_ratio = gen_list_processing(fpgen, generated_list)
 
@@ -217,5 +245,3 @@ def main():
             current_path = log_folder + '/' + str(x) + '.csv'
 
             df.to_csv(current_path, index = False)
-    
-

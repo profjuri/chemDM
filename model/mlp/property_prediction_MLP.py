@@ -382,8 +382,8 @@ def validation(model, device, lpoints, properties_tensor, batch_size):
 
 
 def main():
-    if os.path.exists("perceptron.yml"):
-        settings = yaml.safe_load(open("perceptron.yml", "r"))
+    if os.path.exists("mlp_settings.yml"):
+        settings = yaml.safe_load(open("mlp_settings.yml", "r"))
     else:
         print("Expected a file settings.yml but didn't find it.")
         return
