@@ -1,0 +1,16 @@
+vae:
+  path: ./extrapolation_raw/extrap_vaes/5/stack_size1neurons_num2048_l_dim64/
+  vae_epoch: 250
+
+
+runs:
+  step: 0.1
+  start: 1
+  end: 6
+  num: 10
+  dataset: ./extrapolation_raw/datasets/5_input.csv
+  target: ./extrapolation_raw/datasets/5_target.csv
+  out_path: ./extrapolation_raw/generations/saves/
+  dir_name: 5
+  output_folder: ./extrapolation_raw/generations/
+  name: 5.txt

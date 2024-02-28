@@ -1,25 +1,27 @@
-This is a machine learning tool collection to encode molecules in the SMILES and SELFIES language, as well as uising the trained models for property prediction 
+# `chemDM`
 
-The function files are in the .py files, while the ipynb are used to evaluate, call, and train the models
+Code for analyzing properties of molecular chemicals in the context of searches for the cosmological dark matter.
 
-chemestry_vae_selfies.py contains a VAE model and training loops calling settings.yml and trains a VAE with a RNN as decoder
+## Installation 
 
-chemestry_vae_symmetric.py contains a VAE model that is a symmetric layer model for the encoder and decoder
+We provide an environment specification file for `conda` or `mamba` users at `environment.yml`. With `conda`, an environment is created by `conda env create -f environment.yml`. With `micromamba` the `env` is omitted and a new environment is instead created with `micromamba create -f environment.yml`. This will create a new virtual environemnt named `chemdm`, as specified in the first line of `environment.yml`.
 
-chemestry_perceptron contains a perceptron model and auxilary funcitons used to train a perceptron on the latent space and property vectors 
+From the top-level directory, you can do `pip install .`
 
-auxiliary_funcitons contains useful tensor and vae functions that can be used in the jupiter notebooks
+## Usage
 
-use the TrainingVAE to train the VAE models
+The usage of this code is documented in `notebooks/MolecularProperties.ipynb`.
 
-ValidationVAE reads in a trained VAE model and demonstrates how to use it, it calculates the similarity score
+Input data required to run your own simulations is available at datasets/.DS_Store. Input files should be .csv/.txt and the column containing the SMILES representations should be labelled 'smiles'.
 
-use PropertyReconstruction to train the perceptron and validate the trained model by property reconstruction
+## Citation
 
-use the LatentSpacePlots notebook to visulaize the latent space, and its connection to property data
+If you use this code in your research, please cite this GitHub repo.
 
-use the xyzFileReader to read in .xyz files and convert to csv for faster evaluation
+## Contributing
 
-Note that the .xyz files for the QM9 dataset show only an example file and the full dataset can be downloaded from: https://springernature.figshare.com/collections/Quantum_chemistry_structures_and_properties_of_134_kilo_molecules/978904/4
+If you would like to contribute, please open a new [issue](https://github.com/profjuri/chemDM/issues), and/or be in touch with the [authors](#contact)
 
-The homo-lumo gap and the dipole moment data are converted and provided as a csv file for the applied studies 
+## Contact
+
+The code was developed by Juri Smirnov, Carlos Blanco, and Cameron Cook. [Samuel D. McDermott](https://samueldmcdermott.github.io) provided help with packaging.
