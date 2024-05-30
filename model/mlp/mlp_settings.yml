@@ -1,8 +1,8 @@
 settings:
-  smiles_file: ../symmetric_rnn_vae_folder/datasets/filtered_qm9_energies.csv
-  vae_file: ../symmetric_rnn_vae_folder/updated_vae2/stack_size1neurons_num2048_l_dim64/
+  smiles_file: ../../datasets/QM9/filtered_qm9_energies.csv
+  vae_file: ../vae/YOUR_FILE_NAME_HERE
   vae_epoch: 250
-  output_folder: ./pool_technique
+  output_folder: ./MLP_test
 
 model_params:
   input_dim: 64
