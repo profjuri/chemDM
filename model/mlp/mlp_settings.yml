@@ -1,0 +1,23 @@
+settings:
+  smiles_file: ../symmetric_rnn_vae_folder/datasets/filtered_qm9_energies.csv
+  vae_file: ../symmetric_rnn_vae_folder/updated_vae2/stack_size1neurons_num2048_l_dim64/
+  vae_epoch: 250
+  output_folder: ./pool_technique
+
+model_params:
+  input_dim: 64
+  hidden_dim: 1024
+  prop_pred_activation: 'silu'
+  prop_pred_dropout: 0.15
+  prop_pred_depth: 6
+  prop_growth_factor: 0.65
+  batch_norm: 1
+
+hyperparameters:
+  lr: 0.0003
+  batch_size: 128
+  loss_choice: 3
+  learning_rate_factor: 0.3
+  learning_rate_patience: 15
+  epochs: 251
+  weight_choice: 0

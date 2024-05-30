@@ -1,19 +1,18 @@
 data:
   batch_size: 128
-  smiles_file: ./datasets/pubchem/PubChemOscStren1.csv
-  save_path: ./big_dataset/
+  smiles_file: ./datasets/mystery_labels.csv
+  save_path: ./mystery_mols_qm9/
   full_alphabet_set: ["[#Branch1]","[=NH2+1]","[Ring1]","[F]","[NH1+1]","[=O]","[O-1]","[NH3+1]","[Branch1]","[C]","[NH2+1]","[O]","[#Branch2]","[nop]","[=Branch1]","[=C]","[=N]","[CH1-1]","[N]","[#N]","[=NH1+1]","[C-1]","[=Branch2]","[Branch2]","[#C]","[Ring2]","[N-1]"]
   save_num: 50
   torch_seed: 123
-  file_type: '.csv'
 
 decoder:
-  latent_dimension: 64
-  gru_neurons_num: 512
+  latent_dimension: 1024
+  gru_neurons_num: 1024
   gru_stack_size: 1
 
 encoder:
-  latent_dimension: 64
+  latent_dimension: 1024
   gru_neurons_num: 2048
   gru_stack_size: 1
 
@@ -21,6 +20,5 @@ training:
   KLD_alpha:  0.1
   lr_enc: 0.0005
   lr_dec: 0.0005
-  num_epochs: 251
-  sample_num: 1000
+  num_epochs: 101
 
