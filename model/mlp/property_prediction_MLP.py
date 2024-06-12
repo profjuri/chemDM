@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn.utils.rnn import pad_sequence
 
-import chemistry_vae_symmetric_rnn_final
+import vae
 from functions import get_selfie_and_smiles_encodings_for_dataset, remove_unrecognized_symbols, selfies_to_lpoints, get_free_memory, stats
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -221,6 +221,8 @@ def data_init(settings):
     smiles_file = settings['settings']['smiles_file']
     vae_file = settings['settings']['vae_file']
     vae_epoch = settings['settings']['vae_epoch']
+    tail_side = settings['settings']['tail_side']
+
     vae_settings = yaml.safe_load(open(str(vae_file) + "settings/" + "settings.yml", "r"))
     selfies_alphabet = vae_settings['alphabet']
     torch_seed = vae_settings['data']['torch_seed']
@@ -237,15 +239,16 @@ def data_init(settings):
 
     
 
-    encoding_list, _, _, _, _, _ = get_selfie_and_smiles_encodings_for_dataset(smiles_file)
+    encoding_list, _, _, = get_selfie_and_smiles_encodings_for_dataset(smiles_file)
     #selfies_alphabet.append('.')
+
 
     torch.manual_seed(torch_seed)
     rand_perms = torch.randperm(len(encoding_list))
     encoding_list = [encoding_list[x] for x in rand_perms]
 
     model_weights = torch.load(vae_weights_path, map_location = device)
-    vae_encoder = chemistry_vae_symmetric_rnn_final.VAEEncoder(in_dimension=((model_weights['encode_RNN.weight_ih_l0'].shape[1])), **encoder_parameter).to(device)
+    vae_encoder = vae.VAEEncoder(in_dimension=((model_weights['encode_RNN.weight_ih_l0'].shape[1])), **encoder_parameter).to(device)
     vae_encoder.load_state_dict(model_weights)
 
     my_file = pd.read_csv(smiles_file, index_col=None)
@@ -256,12 +259,29 @@ def data_init(settings):
     properties_tensor = torch.tensor(properties_array,dtype=torch.float32)
     properties_tensor = properties_tensor[rand_perms]
 
+    nan_tensor = (properties_tensor.squeeze().isnan() == False).nonzero().squeeze().to(torch.long)
+    print('nan tensor type:', nan_tensor.dtype)
+    encoding_list = [encoding_list[x] for x in nan_tensor]
+    properties_tensor = properties_tensor[nan_tensor]
+
     largest_molecule_len = int((model_weights['encode_RNN.weight_ih_l0'].shape[1])/len(selfies_alphabet))
 
+    val_part = int(0.8 * len(properties_tensor))
+    prop_clone = properties_tensor[val_part:].squeeze().clone().detach()
 
-    return largest_molecule_len, len(selfies_alphabet), largest_molecule_len*len(selfies_alphabet), selfies_alphabet, encoding_list, vae_encoder, properties_tensor
+    if tail_side == 0: ### If tail_side is 0 then we will investigate the lowest x molecules
+        _, indices = prop_clone.sort()
+    else: ### Else, we will look at the top x molecules, e.g., the molecules with the highest HOMO-LUMO gaps
+        _, indices = prop_clone.sort(descending=True)
+    bottom_indices = indices[:128]
 
-def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet, len_max_molec, optimizer, model, loss_function, scheduler, settings):
+    bottom_encoding = [encoding_list[val_part+x] for x in bottom_indices]
+    bottom_props = properties_tensor[val_part+bottom_indices].to(device)
+
+
+    return largest_molecule_len, len(selfies_alphabet), largest_molecule_len*len(selfies_alphabet), selfies_alphabet, encoding_list, vae_encoder, properties_tensor, bottom_encoding, bottom_props
+
+def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet, len_max_molec, optimizer, model, loss_function, scheduler, bottom_encoding, bottom_props, settings):
 
     '''Train the multi-layered perceptron'''
 
@@ -288,10 +308,10 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
 
     total_mem_req = 8*(len(encoding_list)*lpoint_size) + 4*(len(encoding_list))
     free_memory = get_free_memory(device)
-    memory_ratio = total_mem_req/free_memory + 1
+    memory_ratio = total_mem_req/free_memory 
+    
 
-    num_clusters = int(memory_ratio)
-    print('num clusters:', num_clusters)
+    
 
     train_chunk = int(0.8 * num_chunks)
     valid_chunk = int(0.2 * num_chunks)
@@ -310,9 +330,16 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
             sub_properties = properties_tensor[start_idx: stop_idx]
             mus = selfies_to_lpoints(sub_encoding, selfies_alphabet, len_max_molec, vae_encoder, lpoint_size)
 
-            cluster_size = len(mus) / num_clusters
+
+            num_clusters = int(memory_ratio)+1
+            cluster_size = int(len(mus) / num_clusters)
+
+
             if num_clusters*cluster_size < len(mus):
                 num_clusters = num_clusters+1
+            if len(mus) + cluster_size - (num_clusters*cluster_size) == 1:
+                num_clusters = num_clusters-1
+
 
 
             for cluster_iteration in range(num_clusters):
@@ -340,10 +367,13 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
                     batch_mu = cluster_mu[start_idx: stop_idx]
                     batch_props = cluster_props[start_idx: stop_idx]
 
+
                     optimizer.zero_grad()
+
 
                 
                     predictions = model(batch_mu)
+
 
                     loss = loss_function(predictions, batch_props)
                     loss.backward()
@@ -365,7 +395,6 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
         total_valid_r2 = []
         total_valid_mse = []
         total_valid_mae = []
-        total_bottom_mre = []
         total_valid_mre = []
 
         #model.eval()
@@ -380,9 +409,15 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
                 sub_properties = properties_tensor[start_idx: stop_idx]
                 mus = selfies_to_lpoints(sub_encoding, selfies_alphabet, len_max_molec, vae_encoder, lpoint_size)
 
+                num_clusters = int(memory_ratio) + 1
                 cluster_size = len(mus) / num_clusters
+
+
+
                 if num_clusters*cluster_size < len(mus):
                     num_clusters = num_clusters+1
+
+            
 
 
                 for cluster_iteration in range(num_clusters):
@@ -397,10 +432,7 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
 
                     y_pred = predictions.squeeze().detach().to('cpu')
                     y_test = cluster_props.squeeze().detach().to('cpu')
-                    sorted_props, props_index = torch.sort(y_test, dim=0)
-                    sorted_preds = y_pred[props_index]
 
-                    sub_bottom_mre = torch.mean(torch.abs((sorted_props[:5] -sorted_preds[:5]))/sorted_props[:5])
   
                     sub_mse_valid, sub_mae_valid, sub_mre_valid, valid_r2 = stats(y_test, y_pred)
 
@@ -408,7 +440,15 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
                     total_valid_mae.append(sub_mae_valid)
                     total_valid_mre.append(sub_mre_valid)
                     total_valid_r2.append(valid_r2)
-                    total_bottom_mre.append(sub_bottom_mre)
+
+
+            bottom_mus = selfies_to_lpoints(bottom_encoding, selfies_alphabet, len_max_molec, vae_encoder, lpoint_size)
+            bottom_mus = bottom_mus.to(device)
+            bottom_predictions = model(bottom_mus)
+            bottom_mre = torch.mean(torch.abs((bottom_props -bottom_predictions))/bottom_props)
+
+
+
         #model.train()
         if epoch % 50 == 0:
             save_params(epoch, model, settings)
@@ -420,7 +460,6 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
         mse_valid = sum(total_valid_mse) / len(total_valid_mse)
         mae_valid = sum(total_valid_mae) / len(total_valid_mae)
         mre_valid = sum(total_valid_mre) / len(total_valid_mre)
-        bottom_mre = sum(total_bottom_mre) / len(total_bottom_mre)
 
         scheduler.step(loss)
         
@@ -436,8 +475,8 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
 
 
 def main():
-    if os.path.exists("mlp_settings.yml"):
-        settings = yaml.safe_load(open("mlp_settings.yml", "r"))
+    if os.path.exists("perceptron.yml"):
+        settings = yaml.safe_load(open("perceptron.yml", "r"))
         print(settings)
     else:
         print("Expected a file settings.yml but didn't find it.")
@@ -462,7 +501,9 @@ def main():
         loss_function = nn.MSELoss()
     
 
-    len_max_molec, len_alphabet, len_max_mol_one_hot, encoding_alphabet, encoding_list, vae_encoder, properties_tensor = data_init(settings)
+    len_max_molec, len_alphabet, len_max_mol_one_hot, encoding_alphabet, encoding_list, vae_encoder, properties_tensor, bottom_encoding, bottom_props = data_init(settings)
+
+    print('properties tensor is nan:', torch.sum(properties_tensor.isnan()*1))
 
 
 ###
@@ -480,5 +521,7 @@ def main():
                 optimizer, 
                 model, 
                 loss_function,
-                scheduler, 
+                scheduler,
+                bottom_encoding, 
+                bottom_props,
                 settings)
