@@ -334,11 +334,18 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
             num_clusters = int(memory_ratio)+1
             cluster_size = int(len(mus) / num_clusters)
 
-
+            print('num_clusters:', num_clusters)
+            print('cluster_size:', cluster_size)
             if num_clusters*cluster_size < len(mus):
                 num_clusters = num_clusters+1
             if len(mus) + cluster_size - (num_clusters*cluster_size) == 1:
                 num_clusters = num_clusters-1
+
+
+            print('num_clusters*cluster_size', num_clusters*cluster_size)
+            print('len(mus)', len(mus))
+            print('num_clusters:', num_clusters)
+
 
 
 
@@ -352,10 +359,8 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
 
 
                 num_batches_train = int(cluster_mu.shape[0] / batch_size)
-                if num_clusters*cluster_size < len(mus):
-                    num_clusters = num_clusters+1
-                if len(mus) + cluster_size - (num_clusters*cluster_size) == 1:
-                    num_clusters = num_clusters-1
+                if num_batches_train*batch_size < cluster_mu.shape[0]:
+                    num_batches_train = num_batches_train+1
                 
 
 
@@ -412,17 +417,25 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
                 mus = selfies_to_lpoints(sub_encoding, selfies_alphabet, len_max_molec, vae_encoder, lpoint_size)
 
                 num_clusters = int(memory_ratio) + 1
-                cluster_size = len(mus) / num_clusters
+                cluster_size = int(len(mus) / num_clusters)
 
+                print('num_clusters:', num_clusters)
+                print('cluster_size:', cluster_size)
 
 
                 if num_clusters*cluster_size < len(mus):
                     num_clusters = num_clusters+1
+                if len(mus) + cluster_size - (num_clusters*cluster_size) == 1:
+                    num_clusters = num_clusters-1
 
-            
-
+                print('num_clusters*cluster_size', num_clusters*cluster_size)
+                print('len(mus)', len(mus))
+                print('num_clusters:', num_clusters)
 
                 for cluster_iteration in range(num_clusters):
+
+                    print('Epoch:', epoch, 'Chunk iteration:', chunk_iteration, 'Cluster iteration:', cluster_iteration)
+
 
                     start_idx = int(cluster_iteration * cluster_size)
                     stop_idx = int((cluster_iteration + 1) * cluster_size)
@@ -449,6 +462,8 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
             bottom_predictions = model(bottom_mus)
             bottom_mre = torch.mean(torch.abs((bottom_props -bottom_predictions))/bottom_props)
 
+            print('bottom_predictions:', bottom_predictions)
+            print('bottom_props:', bottom_props)
 
 
         #model.train()
