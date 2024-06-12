@@ -1,0 +1,23 @@
+hyperparameters:
+  batch_size: 128
+  epochs: 251
+  learning_rate_factor: 0.3
+  learning_rate_patience: 15
+  loss_choice: 3
+  lr: 0.0003
+  weight_choice: 0
+model_params:
+  batch_norm: 1
+  hidden_dim: 1024
+  input_dim: 64
+  prop_growth_factor: 0.65
+  prop_pred_activation: silu
+  prop_pred_depth: 6
+  prop_pred_dropout: 0.15
+settings:
+  num_of_cycles: 1
+  output_folder: ./best/4
+  smiles_file: ../../symmetric_rnn_vae_folder/datasets/filtered_qm9_energies.csv
+  target_file: ../../symmetric_rnn_vae_folder/datasets/filtered_qm9_energies.csv
+  vae_epoch: 250
+  vae_file: ../../symmetric_rnn_vae_folder/updated_vae2/stack_size1neurons_num2048_l_dim64/
