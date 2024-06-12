@@ -3,6 +3,8 @@ settings:
   vae_file: ../vae/YOUR_FILE_NAME_HERE
   vae_epoch: 250
   output_folder: ./MLP_test
+  tail_side: 1
+
 
 model_params:
   input_dim: 64
