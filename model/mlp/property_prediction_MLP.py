@@ -352,8 +352,10 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
 
 
                 num_batches_train = int(cluster_mu.shape[0] / batch_size)
-                if num_batches_train*batch_size < cluster_mu.shape[0]:
-                    num_batches_train = num_batches_train+1
+                if num_clusters*cluster_size < len(mus):
+                    num_clusters = num_clusters+1
+                if len(mus) + cluster_size - (num_clusters*cluster_size) == 1:
+                    num_clusters = num_clusters-1
                 
 
 
