@@ -81,7 +81,6 @@ def remove_unrecognized_symbols(smiles_list):
 def selfies_to_lpoints(encoding_list, encoding_alphabet, largest_molecule_len, vae_encoder, lpoint_size):
 
 
-
     alphabet_dict = {letter: index for index, letter in enumerate(encoding_alphabet)}
 
 
@@ -103,12 +102,6 @@ def selfies_to_lpoints(encoding_list, encoding_alphabet, largest_molecule_len, v
 
     print('data.device', data.device)
 
-    total_mem_req = 4*(len(encoding_list)*lpoint_size)
-    free_memory = get_free_memory(device)
-    memory_ratio = total_mem_req/free_memory + 1
-
-    num_clusters = int(memory_ratio)
-
     batch_size = 1024 
 
 
@@ -128,6 +121,8 @@ def selfies_to_lpoints(encoding_list, encoding_alphabet, largest_molecule_len, v
         start_idx = batch_iteration * batch_size
         stop_idx = (batch_iteration + 1) * batch_size
         sub_flat_ = inp_flat_one_hot.squeeze()
+        if sub_flat_.dim() < 2:
+            sub_flat_ = sub_flat_.unsqueeze(0)
         sub_flat = sub_flat_[start_idx: stop_idx].unsqueeze(0).to(device)
 
         _, mus_sub, _ = vae_encoder(sub_flat)
@@ -233,3 +228,61 @@ def get_free_memory(device):
 
     return free_mem
 
+def decode_lpoints(zs, selfies_alphabet, vae_decoder, len_max_molec):
+
+
+    final_smiles_list = []
+    zs = zs.squeeze()
+
+    batch_size = 128
+    num_batches_train = int(len(zs) / batch_size)
+
+    if num_batches_train < len(zs)*batch_size:
+        num_batches_train = num_batches_train + 1
+
+    for batch_iteration in range(num_batches_train):
+
+        start_idx = batch_iteration * batch_size
+        stop_idx = (batch_iteration + 1) * batch_size
+        batch = zs[start_idx: stop_idx].to(device)
+
+        if batch.dim() <2:
+            batch = batch.unsqueeze(0)
+
+
+        seq_tensor = torch.empty(0, dtype=torch.float32).to(device)
+        hidden = vae_decoder.init_hidden(batch_size=batch.shape[0])
+
+        
+
+        for seq_index in range(len_max_molec):
+            vae_decoder.eval()
+            with torch.no_grad():
+
+                out_one_hot_line, hidden = vae_decoder(batch.unsqueeze(0), hidden)
+                out_one_hot_line = out_one_hot_line.squeeze()
+
+                if out_one_hot_line.dim() < 2:
+                    out_one_hot_line = out_one_hot_line.unsqueeze(0)
+
+
+                out_one_hot_line_arg = torch.argmax(out_one_hot_line, dim = 1).unsqueeze(0)
+                seq_tensor = torch.cat((seq_tensor, out_one_hot_line_arg), dim = 0)
+
+
+        
+
+        sequences = seq_tensor.squeeze().t()
+        if sequences.dim() < 2:
+            sequences = sequences.unsqueeze(0)
+        list_of_continuous_strings = [sf.decoder(''.join([selfies_alphabet[int(i)] for i in row])) for row in sequences]
+        final_smiles_list = final_smiles_list + list_of_continuous_strings
+
+    return final_smiles_list
+
+def gen_properties_tensor(my_file):
+    properties_df = my_file.drop(columns=['smiles'])
+    properties_array = properties_df.to_numpy() 
+    properties_tensor = torch.tensor(properties_array,dtype=torch.float32)
+
+    return properties_tensor
