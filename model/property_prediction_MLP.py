@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn.utils.rnn import pad_sequence
 
 import vae
-from functions import get_selfie_and_smiles_encodings_for_dataset, remove_unrecognized_symbols, selfies_to_lpoints, get_free_memory, stats
+from functions import get_selfie_and_smiles_encodings_for_dataset, remove_unrecognized_symbols, selfies_to_lpoints, get_free_memory, stats, gen_properties_tensor
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -253,10 +253,7 @@ def data_init(settings):
 
     my_file = pd.read_csv(smiles_file, index_col=None)
 
-
-    properties_df = my_file.drop(columns=['smiles'])
-    properties_array = properties_df.to_numpy() 
-    properties_tensor = torch.tensor(properties_array,dtype=torch.float32)
+    properties_tensor = gen_properties_tensor(my_file)
     properties_tensor = properties_tensor[rand_perms]
 
     nan_tensor = (properties_tensor.squeeze().isnan() == False).nonzero().squeeze().to(torch.long)
