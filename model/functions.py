@@ -1,12 +1,10 @@
 import os
 import pandas as pd
 import torch
-import yaml
 import selfies as sf
 import numpy as np
 
 import torch.nn as nn
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -133,6 +131,70 @@ def selfies_to_lpoints(encoding_list, encoding_alphabet, largest_molecule_len, v
     #vae_encoder.train()
 
     return mus
+
+
+def selfies_to_all(encoding_list, encoding_alphabet, largest_molecule_len, vae_encoder, lpoint_size):
+
+
+    alphabet_dict = {letter: index for index, letter in enumerate(encoding_alphabet)}
+
+
+    integer_encoded = [[alphabet_dict[symbol] for symbol in sf.split_selfies(encoding_list[x])] for x in range(len(encoding_list))]
+    max_length = max(len(inner_list) for inner_list in integer_encoded)
+    padded_list = [torch.tensor(inner_list + [0] * (max_length - len(inner_list))) for inner_list in integer_encoded]
+    padded_tensor = pad_sequence(padded_list, batch_first=True, padding_value=0)
+
+
+    if padded_tensor.shape[1] < largest_molecule_len:
+        extra_padding = torch.zeros(padded_tensor.shape[0],(largest_molecule_len - padded_tensor.shape[1]), dtype = torch.int64)
+        padded_tensor = torch.cat((padded_tensor, extra_padding),dim=1)
+
+    
+
+
+    data = torch.nn.functional.one_hot(padded_tensor, num_classes = len(encoding_alphabet)).to(torch.float32)
+    mus = torch.empty(0, dtype=torch.float32).to('cpu')
+    zs = torch.empty(0, dtype=torch.float32).to('cpu')
+    log_vars = torch.empty(0, dtype=torch.float32).to('cpu')
+
+
+    print('data.device', data.device)
+
+    batch_size = 1024 
+
+
+
+    inp_flat_one_hot = data.flatten(start_dim=1)
+    inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
+
+
+    num_batches_train = int(data.shape[0] / batch_size)
+    if num_batches_train < data.shape[0] / batch_size:
+        num_batches_train = num_batches_train + 1
+
+    vae_encoder.eval()
+
+    for batch_iteration in range(num_batches_train):
+
+        start_idx = batch_iteration * batch_size
+        stop_idx = (batch_iteration + 1) * batch_size
+        sub_flat_ = inp_flat_one_hot.squeeze()
+        if sub_flat_.dim() < 2:
+            sub_flat_ = sub_flat_.unsqueeze(0)
+        sub_flat = sub_flat_[start_idx: stop_idx].unsqueeze(0).to(device)
+
+        zs_sub, mus_sub, log_vars_sub = vae_encoder(sub_flat)
+        mus_sub = mus_sub.to('cpu')
+        zs_sub = zs_sub.to('cpu')
+        log_vars_sub = log_vars_sub.to('cpu')
+
+        mus = torch.cat((mus, mus_sub))
+        zs = torch.cat((zs, zs_sub))
+        log_vars = torch.cat((log_vars, log_vars_sub))
+    
+    #vae_encoder.train()
+
+    return zs, mus, log_vars
 
 def get_free_memory(device):
     memory_stats = torch.cuda.memory_stats(device)
