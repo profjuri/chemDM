@@ -489,8 +489,8 @@ def train_model(vae_encoder, encoding_list, properties_tensor, selfies_alphabet,
 
 
 def main():
-    if os.path.exists("perceptron.yml"):
-        settings = yaml.safe_load(open("perceptron.yml", "r"))
+    if os.path.exists("mlp_settings.yml"):
+        settings = yaml.safe_load(open("mlp_settings.yml", "r"))
         print(settings)
     else:
         print("Expected a file settings.yml but didn't find it.")
