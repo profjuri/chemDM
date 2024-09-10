@@ -1,0 +1,29 @@
+data:
+ smiles_path: ../../Datasets/Brute_force/Experimental_seeds.csv
+ main_dataset: ../../Datasets/Brute_force/Experimental_seeds.csv
+ save_path: ../Outputs/BF/EXPERIMENTAL_SEEDS1/
+ tail_end: 0
+ mu_threshold: 2.5
+ z_scale: 1.35
+ lower_sigma: 1
+ upper_sigma: 2
+ sas_threshold: 4
+ z_num: 100000
+
+vae:
+ save_path: ../Outputs/VAE/MODEL_1/
+ epoch: 10
+
+mlp:
+ save_path: ../Outputs/MLP/MU_MODEL/
+ epoch: 100
+
+z_mlp: 
+ save_path: ../Outputs/MLP/Z_MODEL/
+ epoch: 130
+
+network_B:
+  save_dir: ../Pre_saved_models/NETWORK_B/
+  OS: 0.05
+  dE: 2.5
+
