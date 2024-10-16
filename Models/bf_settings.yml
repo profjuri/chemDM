@@ -1,14 +1,14 @@
 data:
- smiles_path: ../../Datasets/Brute_force/Experimental_seeds.csv
- main_dataset: ../../Datasets/Brute_force/Experimental_seeds.csv
- save_path: ../Outputs/BF/EXPERIMENTAL_SEEDS1/
+ smiles_path: ../../Datasets/Brute_force/Experimental_seeds.csv #../../Datasets/Brute_force/CSD_EES_DB_dE2x5_OS0x05_SAS4.csv
+ main_dataset: ../../Datasets/PubChemQC_3M/PubChemQC3M.csv
+ save_path: ../Outputs/BF/1M/
  tail_end: 0
  mu_threshold: 2.5
  z_scale: 1.35
  lower_sigma: 1
  upper_sigma: 2
  sas_threshold: 4
- z_num: 100000
+ z_num: 1000000
 
 vae:
  save_path: ../Outputs/VAE/MODEL_1/

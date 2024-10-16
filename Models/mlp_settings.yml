@@ -1,15 +1,15 @@
 settings:
   smiles_file: ../../Datasets/PubChemQC_3M/PubChemQC3M_TRANS1.csv
-  vae_file: ../Outputs/VAE/VAE_ENTROPY_TEST_2/ #../runs/3M_small/
-  vae_epoch: 20
-  output_folder: ../Outputs/MLP/Z_ENTROPY_TEST/
+  vae_file: ../Outputs/VAE/MODEL_1/
+  vae_epoch: 10
+  output_folder: ../Outputs/MLP/MU_MODEL/
   num_of_cycles: 1
-  z: 1
+  z: 0
 
 model_params:
   input_dim: 64
   hidden_dim: 2048
-  prop_pred_activation: leaky_relu
+  prop_pred_activation: gelu
   prop_pred_dropout: 0.1
   prop_pred_depth: 5
   prop_growth_factor: 0.65
@@ -20,6 +20,6 @@ hyperparameters:
   loss_choice: 1
   learning_rate_factor: 0.3
   learning_rate_patience: 15
-  epochs: 250
+  epochs: 500
   weight_choice: 0.0
   batch_norm: 1

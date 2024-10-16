@@ -46,7 +46,7 @@ def selfies_to_zs(encoding_list, encoding_alphabet, largest_molecule_len, vae_en
     '''Arguments:
                     encoding_list: the SELFIES encoding of the SMILES molecules provided (list)
                     encoding_alphabet: the alphabet of the SELFIES encoding (list)
-                    largest_smiles_len: the longest SMILES encoding length (int)
+                    largest_molecule_len: the maximum length of the molecule encodings (int)
                     vae_encoder: the encoder object (VAEEncoder object)'''
     
     '''Outputs:
@@ -135,6 +135,38 @@ def selfies_to_all(encoding_list, encoding_alphabet, largest_molecule_len, vae_e
 
     return zs, mus, log_vars
 
+def selfies_to_lpoints_slow(encoding_list, encoding_alphabet, largest_molecule_len, vae_encoder):
+    vae_encoder.eval()
+
+    mu_list = []
+
+   
+
+    batch_size = 256
+    num_batches_train = (len(encoding_list) + batch_size - 1) // batch_size
+
+
+    for batch_iteration in range(num_batches_train):
+
+        start_idx = batch_iteration * batch_size
+        stop_idx = (batch_iteration + 1) * batch_size
+
+        sub_encoding = encoding_list[start_idx: stop_idx]
+        data = selfies_to_one_hot(sub_encoding, encoding_alphabet, largest_molecule_len).to('cpu').to(torch.float32)
+
+        inp_flat_one_hot = data.flatten(start_dim=1)
+        inp_flat_one_hot = inp_flat_one_hot.squeeze().to(device)
+        inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
+        if inp_flat_one_hot.dim() < 3:
+            inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
+
+
+        _, mus_sub, _ = vae_encoder(inp_flat_one_hot)
+        mu_list.append(mus_sub.to('cpu'))
+
+    mus = torch.cat(mu_list)
+
+    return mus
 
 
 def stats(y_test, y_pred):
@@ -250,40 +282,29 @@ def gen_properties_tensor(my_file):
 
     return properties_tensor
 
-def lpoints_to_onehots(zs, selfies_alphabet, vae_decoder):
+def lpoints_to_sequences(zs, vae_decoder):
 
-    '''Converts latent vectors to onehots. Useful for if you do not care about getting the SMILES/SELFIES output. This function
-        removes non-unique one-hots and so is only used in the brute force code.'''
+    '''Converts latent vectors to sequence tensor. Useful for if you do not care about getting the SMILES/SELFIES output. This function
+        removes non-unique latent vectors and so is only used in the brute force code.'''
 
     '''Arguments:
                     zs: a latent vector modified by some distribution defined by the standard deviation (Pytorch float.32 tensor)
-                    selfies_alphabet: the alphabet of the SELFIES encoding (list)
                     vae_decoder: the decoder object (VAEDecoder object)'''
     
     '''Outputs:
-                    data: pytorch tensor of representing the SELFIES output from the decoder (Pytorch float.32 tensor)'''
+                    sequence_tensor: pytorch sequence tensor representing the SELFIES output from the decoder. Sequence numbers correspond to alphabet characters (Pytorch float.32 tensor)'''
 
 
-
-    data_list = []
-    big_data_list = []
     if zs.dim() <2:
         zs = zs.unsqueeze(0)
     zs = zs.to('cpu')
-    
-    len_max_molec = 79
-    DATA_SIZE = zs.shape[0] * len(selfies_alphabet) * len_max_molec
-    ONEHOT_SIZE = 4096 * 2 * 4 * len_max_molec * (vae_decoder.decode_RNN.weight_hh_l0.shape[0])
-    GPU_USAGE = DATA_SIZE + ONEHOT_SIZE
-    FREE_MEM = get_free_memory(device)
-    MEM_RATIO = FREE_MEM/(GPU_USAGE)
-
+        
     batch_size = 4096
     num_batches_train = int(len(zs) / batch_size)
     if num_batches_train < len(zs)/batch_size:
         num_batches_train = num_batches_train + 1
     seq_list = []
-    
+        
 
     for batch_iteration in range(num_batches_train):
         start_idx = batch_iteration * batch_size
@@ -292,50 +313,23 @@ def lpoints_to_onehots(zs, selfies_alphabet, vae_decoder):
 
         with torch.no_grad():
             out_one_hot = vae_decoder(batch)
-        seq_tensor = out_one_hot.argmax(2)
-        
+        seq_tensor = out_one_hot.argmax(2)        
         seq_list.append(seq_tensor)
     sequence_tensor = torch.cat(seq_list).to(device)
     sequence_tensor = torch.unique(sequence_tensor,dim=0)
 
 
-    num_batches_train = int(len(sequence_tensor) / batch_size)
-    if num_batches_train < len(sequence_tensor)/batch_size:
-        num_batches_train = num_batches_train + 1
-    PAUSE_ITERATION = int(0.5*num_batches_train*MEM_RATIO) + 1
+    return sequence_tensor
 
 
-
-    for batch_iteration in range(num_batches_train):
-        start_idx = batch_iteration * batch_size
-        stop_idx = (batch_iteration + 1) * batch_size
-        batch = sequence_tensor[start_idx: stop_idx].to(device)
-        data = torch.nn.functional.one_hot(batch, num_classes = len(selfies_alphabet)).to(torch.bool)
-        data_list.append(data)
-
-        if batch_iteration % PAUSE_ITERATION == 0:
-           
-            data = torch.cat(data_list).to('cpu')
-            big_data_list.append(data)
-            data_list = []
-
-    if len(data_list) > 0:
-        data = torch.cat(data_list).to('cpu')
-        big_data_list.append(data)
-        
-    one_hot_tensor = torch.cat(big_data_list).to(torch.float32)
-
-
-    return one_hot_tensor
-
-
-def onehots_to_lpoints(data, vae_encoder):
+def sequences_to_lpoints(sequence_tensor, encoding_alphabet, vae_encoder):
 
     '''Converts latent vectors to onehots. Useful for if you do not care about getting the SMILES/SELFIES output. This function
         removes non-unique one-hots and so is only used in the brute force code.'''
 
     '''Arguments:
-                    data: pytorch tensor of representing the some SELFIES (Pytorch float.32 tensor)
+                    sequence_tensor: pytorch sequence tensor representing the SELFIES output from the decoder. Sequence numbers correspond to alphabet characters (Pytorch float.32 tensor)
+                    encoding_alphabet: the alphabet of the SELFIES encoding (list)
                     vae_encoder: the encoder object (VAEEncoder object)'''
     
     '''Outputs:
@@ -345,13 +339,8 @@ def onehots_to_lpoints(data, vae_encoder):
     batch_size = 1024
 
 
-
-    inp_flat_one_hot = data.flatten(start_dim=1)
-    inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
-
-
-    num_batches_train = int(data.shape[0] / batch_size)
-    if num_batches_train < data.shape[0] / batch_size:
+    num_batches_train = int(sequence_tensor.shape[0] / batch_size)
+    if num_batches_train < sequence_tensor.shape[0] / batch_size:
         num_batches_train = num_batches_train + 1
 
     vae_encoder.eval()
@@ -360,12 +349,18 @@ def onehots_to_lpoints(data, vae_encoder):
 
         start_idx = batch_iteration * batch_size
         stop_idx = (batch_iteration + 1) * batch_size
-        sub_flat_ = inp_flat_one_hot.squeeze()
-        if sub_flat_.dim() < 2:
-            sub_flat_ = sub_flat_.unsqueeze(0)
-        sub_flat = sub_flat_[start_idx: stop_idx].unsqueeze(0).to(device)
+        batch = sequence_tensor[start_idx:stop_idx]
 
-        _, mus_sub, _ = vae_encoder(sub_flat)
+        data = torch.nn.functional.one_hot(batch, num_classes = len(encoding_alphabet))
+        inp_flat_one_hot = data.flatten(start_dim=1)
+        inp_flat_one_hot = inp_flat_one_hot.squeeze().to(torch.float32)
+
+
+        if inp_flat_one_hot.dim() < 2:
+            inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0)
+        inp_flat_one_hot = inp_flat_one_hot.unsqueeze(0).to(device)
+
+        _, mus_sub, _ = vae_encoder(inp_flat_one_hot)
         mu_list.append(mus_sub)
 
     
@@ -411,47 +406,6 @@ def fp_generation(smiles_list):
 
     return fp
         
-
-def make_model(size_feature, width, activation, dropout, n_layers, l_rate, batch_size, loss_fn, size_target):
-        
-        '''Function to generate the MLP used in network B'''
-    
-        '''Arguments:
-                        size_feature: the size of the number of features inputted into the MLP, e.g., if inputting daylight fp, morgan fp and one-hot encoding, 
-                                        the size is then 3 (int)
-                        width: the number of nodes in a given layer (int)
-                        activation: the pytorch activation function (Torch.nn function)
-                        dropout: size of dropout (float)
-                        n_layers: number of layers (int)
-                        l_rate: learning rate (float)
-                        batch_size: batch size for training (int)
-                        loss_fn: the pytorch loss function (Torch.nn function)
-                        size_target: size of the output, e.g., for 1st and 2nd OS + dE, this is 4'''    
-        
-        '''Outputs:
-                        MLP: the output is the MLP (dc.models.TorchModel object) '''
-        
-        layers = []
-        
-        # Input layer
-        layers.append(torch.nn.Linear(size_feature, width))
-        layers.append(torch.nn.BatchNorm1d(width))
-        layers.append(activation)
-        layers.append(torch.nn.Dropout(dropout))
-        
-        # Hidden layers
-        for _ in range(n_layers - 1):
-                layers.append(torch.nn.Linear(width, width))
-                layers.append(torch.nn.BatchNorm1d(width))
-                layers.append(activation)
-                layers.append(torch.nn.Dropout(dropout))
-        
-        # Output layer
-        layers.append(torch.nn.Linear(width, size_target))
-        
-        # Create the sequential model    
-        return dc.models.TorchModel(torch.nn.Sequential(*layers),loss_fn, learning_rate=dc.models.optimizers.ExponentialDecay(l_rate, 0.90, 300) ,batch_size=batch_size)
-
 
 def try_encode(x):
 
@@ -633,3 +587,74 @@ def generate_normal_tensor(z_num, lpoint_size, bottom, top):
     eps[mask] = -eps[mask].detach()
     
     return eps
+
+
+def gen_fingerprints(smiles_list, encoding_list, vae_encoder, encoding_alphabet, largest_molecule_len):
+
+    '''Generates the fingerprints used in the network B MLP.'''
+
+    '''Arguments:
+                    smiles_list: the list of SMILES encodings (list)
+                    encoding_list: the SELFIES encoding of the SMILES molecules provided (list)
+                    vae_encoder: the encoder object (VAEEncoder object)
+                    encoding_alphabet: the alphabet of the SELFIES encoding (list)
+                    largest_molecule_len: the maximum length of the molecule encodings (int)'''  
+      
+    '''Outputs:
+                    lpoints: the mean latent vectors (Pytorch float.32 tensor)
+                    morgan_fp_tensor: pytorch tensor containing morgan fingerprints (Pytorch float.32 tensor)
+                    daylight_fingerprints_tensor: pytorch tensor containing daylight fingerprints (Pytorch float.32 tensor)
+                    mol2vec_tensor: pytorch tensor containing mol2vec fingerprints (Pytorch float.32 tensor)'''
+
+
+    fpgen_morgan = AllChem.GetMorganGenerator(radius=3, fpSize=2048)
+    fpgen_daylight = AllChem.GetRDKitFPGenerator()
+    featurizer = dc.feat.Mol2VecFingerprint()
+    toMol2Vec = lambda z: np.array(featurizer(z).flatten())
+
+    num_batches = 10
+    gen_batch_size = int(len(smiles_list) /num_batches)
+    if gen_batch_size * num_batches < len(smiles_list):
+        num_batches +=1
+
+    lpoint_list = []
+    morgan_list = []
+    daylight_list = []
+    mol2vec_list = []
+
+
+    for x in range(num_batches):
+        start_idx = x * gen_batch_size
+        stop_idx = (x + 1) * gen_batch_size
+
+        sub_smiles = smiles_list[start_idx:stop_idx]
+        sub_encoding = encoding_list[start_idx:stop_idx]
+
+        mols = [Chem.MolFromSmiles(x) for x in sub_smiles]
+        vae_encoder.eval()
+        with torch.no_grad():
+            lpoints = selfies_to_lpoints_slow(sub_encoding, encoding_alphabet, largest_molecule_len, vae_encoder).flatten(1).to('cpu').to(torch.float32)
+        lpoint_list.append(lpoints)
+
+        morgan_fps = fpgen_morgan.GetFingerprints(mols,numThreads=32)
+        morgan_fp_tensor = torch.tensor(np.array(morgan_fps).astype(float)).to('cpu').to(torch.float32)
+        morgan_list.append(morgan_fp_tensor)
+
+        daylight_fps = fpgen_daylight.GetFingerprints(mols,numThreads=32)
+        daylight_fingerprints_tensor = torch.tensor(np.array(daylight_fps).astype(float)).to('cpu').to(torch.float32)
+        daylight_list.append(daylight_fingerprints_tensor)
+
+        mol2vecs = np.array([toMol2Vec(x) for x in sub_smiles])
+        mol2vec_tensor = torch.tensor(mol2vecs).to('cpu').to(torch.float32)
+        mol2vec_list.append(mol2vec_tensor)
+
+    lpoints = torch.cat(lpoint_list)
+    del lpoint_list
+    morgan_fp_tensor = torch.cat(morgan_list)
+    del morgan_list
+    daylight_fingerprints_tensor = torch.cat(daylight_list)
+    del daylight_list
+    mol2vec_tensor = torch.cat(mol2vec_list)
+    del mol2vec_list
+
+    return lpoints, morgan_fp_tensor, daylight_fingerprints_tensor, mol2vec_tensor

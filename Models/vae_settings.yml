@@ -1,7 +1,7 @@
 data:
   batch_size: 128
-  smiles_file: ../../Datasets/PubChemQC_3M/PubChemQC3M_HL.csv
-  save_path: ../Outputs/VAE/VAE_ENTROPY_TEST_2
+  smiles_file: ../../Datasets/PubChemQC_3M/PubChemQC3M_TRANS1.csv
+  save_path: ../Outputs/VAE/PUBCHEM/DISCRETE1
   full_alphabet_set: ["[#Branch1]","[=NH2+1]","[Ring1]","[F]","[NH1+1]","[=O]","[O-1]","[NH3+1]","[Branch1]","[C]","[NH2+1]","[O]","[#Branch2]","[nop]","[=Branch1]","[=C]","[=N]","[CH1-1]","[N]","[#N]","[=NH1+1]","[C-1]","[=Branch2]","[Branch2]","[#C]","[Ring2]","[N-1]"]
   save_num: 50
   torch_seed: 123

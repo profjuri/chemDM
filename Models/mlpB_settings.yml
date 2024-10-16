@@ -1,0 +1,27 @@
+settings:
+  smiles_file: ../../Datasets/PubChemQC_3M/PubChemQC3M_noHe.csv
+  vae_file: ../Outputs/VAE/MODEL_2/
+  vae_epoch: 10
+  output_folder: ../Outputs/MLP_B/MODEL_1/
+  num_of_cycles: 1
+  z: 0
+  num_props: 2
+
+model_params:
+  input_dim: 4096
+  hidden_dim: 4096
+  prop_pred_activation: gelu
+  prop_pred_dropout: 0.25
+  prop_pred_depth: 6
+  prop_growth_factor: 0.5
+
+hyperparameters:
+  lr: 0.0005
+  batch_size: 128
+  loss_choice: 3
+  learning_rate_factor: 0.3
+  learning_rate_patience: 15
+  epochs: 251
+  weight_choice: 0.0
+  batch_norm: 1
+  osc1_bias: 1
