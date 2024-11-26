@@ -1,8 +1,8 @@
 settings:
-  smiles_file: ../../Datasets/PubChemQC_3M/PubChemQC3M_noHe.csv
-  vae_file: ../Outputs/VAE/MODEL_2/
+  smiles_file: ./PATH/TO/SMILES/CSV
+  vae_file: ./PATH/TO/VAE/FOLDER
   vae_epoch: 10
-  output_folder: ../Outputs/MLP_B/MODEL_1/
+  output_folder: ./PATH/TO/OUTPUT/FOLDER
   num_of_cycles: 1
   z: 0
   num_props: 2

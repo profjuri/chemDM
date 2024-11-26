@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import torch
 import os
 import sys
@@ -19,7 +21,7 @@ from rdkit.Chem import rdFingerprintGenerator
 from rdkit.Chem import RDConfig
 from rdkit.Chem import AllChem
 import deepchem as dc 
-fpgen = rdFingerprintGenerator.GetRDKitFPGenerator(fpSize=4096)
+fpgen = rdFingerprintGenerator.GetRDKitFPGenerator(fpSize=512)
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
 import sascorer
 
@@ -53,7 +55,6 @@ def get_models(settings):
     encoder_parameter = vae_settings['encoder']
     decoder_parameter = vae_settings['decoder']
     selfies_alphabet = vae_settings['alphabet']
-    torch_seed = vae_settings['data']['torch_seed']
 
     encoder_dict_path = str(vae_save_path) + str(vae_epoch) + "/E.pt"
     decoder_dict_path = str(vae_save_path) + str(vae_epoch) + "/D.pt"
@@ -62,7 +63,6 @@ def get_models(settings):
 
     largest_molecule_len = int(encoder_dict['encode_RNN.weight_ih_l0'].shape[1]/len(selfies_alphabet))
     lpoint_size = decoder_dict['decode_RNN.weight_ih_l0'].shape[1]
-
 
     vae_encoder = vae.VAEEncoder(in_dimension=(encoder_dict['encode_RNN.weight_ih_l0'].shape[1]), **encoder_parameter)
     vae_decoder = vae.VAEDecoder(**decoder_parameter, out_dimension=len(selfies_alphabet), seq_len=largest_molecule_len)
@@ -149,19 +149,19 @@ def save_smiles(generated_smiles, predictions, sascores, smiles_index, settings)
 
 def dump_csvs(df, settings, file_type):
 
-    '''Function to dump 2 different csvs, ideal_mols, ideal_mols_2'''
+    '''Function to dump 3 different csvs, ideal_mols, ideal_mols_2, sanitised_bf_results'''
 
     '''Arguments:
                         df: pandas DataFrame we want to dump (pandas DataFrame object)
                         settings: settings defined by the corresponding .yml file (dict)
                         file_type: 1, or 2. Corresponds to the file name we want (int) '''
 
-
-
     if file_type ==1:
         loc_file = '/ideal_mols.csv'
     if file_type ==2:
         loc_file = '/ideal_mols_2.csv'
+    if file_type ==3:
+        loc_file = '/sanitised_bf_results.csv'
 
     save_path = settings['data']['save_path']
     csv_file_path = save_path + loc_file
@@ -186,8 +186,6 @@ def gen_small_tensor_list(TENSOR, RECOMMENDED_TENSOR_SIZE):
         
     '''Outputs:
                         smaller_tensors: list of smaller tensors that should contain every entry in the original tensor (list)'''
-
-
 
     RECOMMENDED_TENSOR_SIZE = int(RECOMMENDED_TENSOR_SIZE)
     TENSOR_RESHAPE = round(TENSOR.shape[0]/RECOMMENDED_TENSOR_SIZE) + 1
@@ -226,7 +224,6 @@ def gen_step(encoding_list, smiles_index, encoding_alphabet, largest_molecule_le
     '''Outputs:
                         zs: latent vectors defined by the distribution in eps and the mus (Pytorch float.32 tensor)'''
 
-
     _, mu, log_var = selfies_to_all([encoding_list[smiles_index]], encoding_alphabet, largest_molecule_len, vae_encoder)
     log_var = log_var
     std = torch.exp(0.5 * log_var)
@@ -256,7 +253,6 @@ def z_model_step(z_model, zs, condition3):
         
     '''Outputs:
                         threshold_indices: tensor containing the indices of the zs that met condition3 (Pytorch float.32 tensor)'''
-
 
     FREE_GPU = get_free_memory(device)
     RECOMMENDED_Z_SIZE = (FREE_GPU * 0.8) / ( 2 * 4 * (z_model.layers[0].weight.shape[0])) ### 0.8 so we use 80% of the gpu at maximum just to be safe
@@ -313,7 +309,6 @@ def mu_model_step(mlp_model, mus, condition2):
                         index_tensor: tensor containing the indices of the mus that met condition2 (Pytorch float.32 tensor)
                         predictions: tensor containing the predictions of the mus that met condition2 (Pytorch float.32 tensor)'''
 
-
     FREE_GPU = get_free_memory(device)
     RECOMMENDED_Z_SIZE = (FREE_GPU * 0.8) / ( 2 * 4 * (mlp_model.layers[0].weight.shape[0])) ### 0.8 so we use 80% of the gpu at maximum just to be safe
     sub_z = gen_small_tensor_list(mus, RECOMMENDED_Z_SIZE)
@@ -345,7 +340,6 @@ def sanitisation_step(mus, predictions, selfies_alphabet, vae_decoder, index_ten
                         top_smiles: list of SMILES that survived the sanitisation (list)
                         top_selfies: list of SELFIES that survives the sanitisation (list)
                         top_predictions: properties tensor that survived the sanitisation, corresponds to the other two lists (Pytorch float.32 tensor)'''
-
 
     mus = mus[index_tensor]
     predictions = predictions[index_tensor]
@@ -401,7 +395,6 @@ def SAS_step(top_smiles, top_selfies, condition4, top_predictions):
                         top_sas: list of sa scores corresponding the molecules that met the SA threshold (list)
                         top_predictions: properties tensor that that met the SA score threshold, corresponds to the other three lists (Pytorch float.32 tensor)'''
 
-
     sascores = [sascorer.calculateScore(Chem.MolFromSmiles(x)) for x in top_smiles]
     sascores = torch.tensor(sascores)
             
@@ -435,7 +428,6 @@ def bf(vae_encoder, vae_decoder, mlp_model, z_model, selfies_alphabet, largest_m
                         encoding_list: a list containing the SELFIES (list)
                         settings: dict of settings used (dict) '''
 
-
     tail_end = settings['data']['tail_end']
     threshold = settings['data']['mu_threshold']
     z_scale = settings['data']['z_scale']
@@ -461,7 +453,9 @@ def bf(vae_encoder, vae_decoder, mlp_model, z_model, selfies_alphabet, largest_m
     time_0 = time.time()
 
     run_list = get_run_log_list(settings)
-    smiles_index= max(run_list) + 1
+    smiles_index= max(run_list)
+    if smiles_index !=0:
+        smiles_index +=1
     print('Starting SMILES index:', smiles_index)
 
     while smiles_index < len(encoding_list):
@@ -470,15 +464,12 @@ def bf(vae_encoder, vae_decoder, mlp_model, z_model, selfies_alphabet, largest_m
             print('SMILES:', smiles_index, '/', len(encoding_list), 'Time taken:', time.time() - time_0)
             time_0 = time.time()
 
-            
-
         zs = gen_step(encoding_list, smiles_index, selfies_alphabet, largest_molecule_len, vae_encoder, z_num, eps)
         threshold_indices = z_model_step(z_model, zs, condition3)
         if threshold_condition(threshold_indices):
             save_index(smiles_index, settings)
             smiles_index+=1
             continue
-
 
         mus = mu_gen_step(zs, threshold_indices, selfies_alphabet, vae_decoder, vae_encoder)
         index_tensor, predictions = mu_model_step(mlp_model, mus, condition2)
@@ -492,14 +483,12 @@ def bf(vae_encoder, vae_decoder, mlp_model, z_model, selfies_alphabet, largest_m
             save_index(smiles_index, settings)
             smiles_index+=1
             continue
-        
 
         top_smiles, _, sascores, top_predictions = SAS_step(top_smiles, top_selfies, condition4, top_predictions)
         if threshold_condition(top_smiles):
             save_index(smiles_index, settings)
             smiles_index+=1
             continue
-
 
         save_smiles(top_smiles, top_predictions.squeeze().tolist(), sascores.squeeze().tolist(), smiles_index, settings)
         del top_smiles
@@ -513,44 +502,61 @@ def bf(vae_encoder, vae_decoder, mlp_model, z_model, selfies_alphabet, largest_m
 def final_sanitiser(settings):
 
     '''This is the final sanitisation step. Here, we take the output from NETWORK A and clean it up, i.e., we remove duplicates and invalid molecules 
-        then save them to a csv'''
+        then save them to a csv. The batch size here are set in the settings since the fingerprints are very large and take up lots of room. Because of this,
+        not all redundancy will be removed if the dataset is large enough.'''
 
     '''Arguments:
                         settings: dict of settings used (dict)'''
-        
 
     save_path = settings['data']['save_path']
     csv_file_name = 'bf_results.csv'
     csv_file_path = save_path + csv_file_name
     main_dataset_path = settings['data']['main_dataset']
+    chunk_size = settings['data']['sanitisation_chunk_size']
 
+    print('Generating canon smiles')
+    t_ = time.time()
     df_bf = pd.read_csv(csv_file_path)
     df_main = pd.read_csv(main_dataset_path)
-
     df_bf['canon_smiles'] = [canonicalize_smiles(Chem.MolFromSmiles(x)) for x in df_bf['smiles']]
     df_bf.drop_duplicates(subset=['canon_smiles'])
+    print('Finished generating canon smiles, time taken:', time.time()-t_)
 
-    BF_SMILES = df_bf['smiles'].tolist()
     PC_SMILES = df_main['smiles'].tolist()
-
-    BF_FP = fp_generation(BF_SMILES)
+    print('Generating pubchem fingerprints')
+    t_ = time.time()
     PC_FP = fp_generation(PC_SMILES)
-
-    df_bf['FP'] = BF_FP
     df_main['FP'] = PC_FP
+    print('Finished generating pubchem fingerprints, time taken:', time.time()-t_)
+    num_chunks = int(len(df_bf) / chunk_size)
+    if chunk_size * num_chunks < len(df_bf):
+        num_chunks +=1
 
-    df_bf = df_bf.drop_duplicates(subset='FP')
-    df_bool = df_bf['FP'].isin(df_main['FP'])
-    df_filtered = df_bf[df_bool*1==0]
-    del df_filtered['FP']
+    print(f'Starting filtered dataset generation. Num chunks {num_chunks}, len dataset {len(df_bf)}, free memory: {get_free_ram()/(1024**3)}GB')
+    t_ = time.time()
+    for chunk_it in range(num_chunks):
 
-    df_filtered.to_csv(save_path + 'sanitised_bf_results.csv', index=False)
-  
+        start_idx = chunk_it*chunk_size
+        stop_idx = (chunk_it+1)* chunk_size
+        sub_df = df_bf.iloc[start_idx:stop_idx].reset_index(drop=True)
+        BF_SMILES = sub_df['smiles'].tolist()
+
+        BF_FP = fp_generation(BF_SMILES)
+        sub_df['FP'] = BF_FP
+    
+        sub_df = sub_df.drop_duplicates(subset='FP')
+        df_bool = sub_df['FP'].isin(df_main['FP'])
+        df_filtered = sub_df[df_bool*1==0]
+        del df_filtered['FP']
+        dump_csvs(df_filtered, settings, 3)
+
+        print(f'Chunk iteration {chunk_it}/{num_chunks} complete. Length of dataset: {len(df_filtered)}, time taken: {time.time()-t_}')
+        t_=time.time()
 
 
 def sub_df_prep(settings, df_sub):
 
-    '''Function to to take the sub_df and return items needed for fingerprint generation.'''
+    '''Function to to take the sub_df and return items needed for fingerprint generation. Some filtering occurs here due to convenience.'''
 
 
     '''Arguments:
@@ -564,8 +570,6 @@ def sub_df_prep(settings, df_sub):
                         vae_encoder: the encoder object (VAEEncoder object)
                         smiles_list: the list of SMILES encodings (list)'''
 
-
-
     vae_file = settings['vae']['save_path']
     vae_epoch = settings['vae']['epoch']
     vae_settings = yaml.safe_load(open(str(vae_file) + "settings/" + "settings.yml", "r"))
@@ -573,22 +577,18 @@ def sub_df_prep(settings, df_sub):
     encoder_parameter = vae_settings['encoder']
     vae_weights_path = str(vae_file) + str(vae_epoch) + "/E.pt"
 
-
     model_weights = torch.load(vae_weights_path, map_location = device)
     len_max_molec_onehot = model_weights['encode_RNN.weight_ih_l0'].shape[1]
     largest_molecule_len = int(len_max_molec_onehot/len(encoding_alphabet))
     vae_encoder = vae.VAEEncoder(in_dimension=len_max_molec_onehot, **encoder_parameter).to(device)
     vae_encoder.load_state_dict(model_weights)
     vae_encoder.eval()
-
     new_constraints = selfies.get_semantic_constraints()
     new_constraints['N'] = 5
     new_constraints['B'] = 4
     selfies.set_semantic_constraints(new_constraints)
-
     smiles_list = df_sub['smiles'].tolist()
     encoding_list = [selfies.encoder(x) for x in smiles_list]    
-
     mols = [Chem.MolFromSmiles(x) for x in smiles_list]
     valid_list = []
 
@@ -599,9 +599,18 @@ def sub_df_prep(settings, df_sub):
     mols = [mols[x] for x in valid_list]
     smiles_list = [smiles_list[x] for x in valid_list]
     encoding_list = [encoding_list[x] for x in valid_list]
+    df_f1 = df_sub.loc[valid_list].reset_index(drop=True)
 
+    alphabet_dict = {letter: index for index, letter in enumerate(encoding_alphabet)}
+    integer_encoded = [[alphabet_dict[symbol] for symbol in selfies.split_selfies(encoding_list[x])] for x in range(len(encoding_list))]
+    valid_list2 = [x for x in range(len(integer_encoded)) if len(integer_encoded[x]) < largest_molecule_len]
 
-    return largest_molecule_len, encoding_alphabet, encoding_list, vae_encoder, smiles_list
+    mols = [mols[x] for x in valid_list2]
+    smiles_list = [smiles_list[x] for x in valid_list2]
+    encoding_list = [encoding_list[x] for x in valid_list2]
+    df_f2 = df_f1.loc[valid_list2].reset_index(drop=True)
+
+    return largest_molecule_len, encoding_alphabet, encoding_list, vae_encoder, smiles_list, df_f2
 
 def load_mlpB(settings):
 
@@ -613,24 +622,20 @@ def load_mlpB(settings):
     '''Outputs:
                         mlpB_model: the multi-layered perceptron object, trained on mus and fingerprints (PropertyRegressionModel object)'''
 
-
     mlpB_save_path = settings['network_B']['save_path']
     mlpB_epoch = settings['network_B']['epoch']
-
     mlpB_settings = yaml.safe_load(open(str(mlpB_save_path) + "settings/" + "settings.yml", "r"))
     mlpB_model = mlp_B.PropertyRegressionModel(mlpB_settings)
     state_dict = torch.load(mlpB_save_path + '/' + str(mlpB_epoch) + '/model.pt', map_location=device)
     mlpB_model.load_state_dict(state_dict)
-
     mlpB_model.eval()
-
     mlpB_model.to(device)
 
 
     return mlpB_model
 
 
-def pd_sorting(settings, predictions, file_path, start_idx, stop_idx, B_OS_THRESHOLD, B_dE_THRESHOLD):
+def pd_sorting(settings, sub_df, predictions, file_path, start_idx, stop_idx, B_OS_THRESHOLD, B_dE_THRESHOLD):
 
     '''Function that sorts through the output predictions and generates different pandas dataframes. Very messy but outputs are ultimately ideal_mols and ideal_mols_2'''
 
@@ -651,18 +656,11 @@ def pd_sorting(settings, predictions, file_path, start_idx, stop_idx, B_OS_THRES
     trans2 = [predictions[x, 2].item() for x in range(predictions.shape[0])]
     osc2 = [predictions[x, 3].item() for x in range(predictions.shape[0])]
 
-
-
-
-    pubchem_no_fp = pd.read_csv(file_path + '/sanitised_bf_results.csv')
-    pubchem_no_fp_2 = pd.read_csv(file_path + '/sanitised_bf_results.csv')
-    pubchem_no_fp = pubchem_no_fp[start_idx:stop_idx]
-    pubchem_no_fp_2 = pubchem_no_fp_2[start_idx:stop_idx]
-
-
+    pubchem_no_fp = sub_df.reset_index(drop=True)
+    pubchem_no_fp_2 = sub_df.reset_index(drop=True)
+    del sub_df
     del pubchem_no_fp['smiles']
     del pubchem_no_fp_2['smiles']
-
 
     pubchem_no_fp['OscillatorStrength1'] = osc1
     pubchem_no_fp_2['OscillatorStrength1'] = osc1
@@ -670,13 +668,12 @@ def pd_sorting(settings, predictions, file_path, start_idx, stop_idx, B_OS_THRES
     pubchem_no_fp_2['TransitionEnergies1'] = trans1
     pubchem_no_fp_2['OscillatorStrength2'] = osc2
     pubchem_no_fp_2['TransitionEnergies2'] = trans2
-
     pubchem_no_fp.to_csv(file_path + '/sanitised_final_bf_results.csv', index=False)
     pubchem_no_fp_2.to_csv(file_path + '/sanitised_final_bf_results_2.csv', index=False)
 
     pubchem_check = pubchem_no_fp[pubchem_no_fp['OscillatorStrength1'] > B_OS_THRESHOLD]
     pubchem_final = pubchem_check[pubchem_check['TransitionEnergies1'] < B_dE_THRESHOLD]
-    pubchem_final.drop_duplicates(subset=['canon_smiles'])
+    pubchem_final = pubchem_final.drop_duplicates(subset=['canon_smiles'])
     del pubchem_final['property']
     col_ind = pubchem_final.pop('smiles_index')
     pubchem_final.insert(len(pubchem_final.columns), col_ind.name, col_ind)
@@ -691,14 +688,13 @@ def pd_sorting(settings, predictions, file_path, start_idx, stop_idx, B_OS_THRES
     pubchem_final = pubchem_check[pubchem_check['TransitionEnergies1'] < B_dE_THRESHOLD]
     pubchem_final2 = pubchem_check[pubchem_check['TransitionEnergies2'] < B_dE_THRESHOLD]
     pubchem_final = pd.concat([pubchem_final, pubchem_final2])
-    pubchem_final.drop_duplicates(subset=['canon_smiles'])
+    pubchem_final = pubchem_final.drop_duplicates(subset=['canon_smiles'])
     del pubchem_final['property']
     col_ind = pubchem_final.pop('smiles_index')
     pubchem_final.insert(len(pubchem_final.columns), col_ind.name, col_ind)
     col_ind = pubchem_final.pop('SAS')
     pubchem_final.insert(len(pubchem_final.columns), col_ind.name, col_ind)
     dump_csvs(pubchem_final, settings, 2)
-
 
 
 def NETWORK_B(settings):
@@ -709,57 +705,45 @@ def NETWORK_B(settings):
     '''Arguments:
                         settings: dict of settings used (dict)'''
 
-
-
     file_path = settings['data']['save_path']
     B_OS_THRESHOLD = settings['network_B']['OS']
     B_dE_THRESHOLD = settings['network_B']['dE']
 
-
     df_base = pd.read_csv(file_path + '/sanitised_bf_results.csv')
-
 
     batch_size = 13100
     num_batches = int(len(df_base) / batch_size)
     if num_batches*batch_size < len(df_base):
         num_batches = num_batches +1
-
     
     run_list = get_run_log_list_fp(settings)
     fp_index = max(run_list)
-
-    print('NUM BATCHES:', num_batches)
-
-
     MLP_B_model = load_mlpB(settings)
-
+    t_ = time.time()
 
 
     for batch_iteration in range(fp_index, num_batches):
-        print('Batch iteration:', batch_iteration, '/', num_batches)
         start_idx = batch_iteration * batch_size
         stop_idx = (batch_iteration + 1) * batch_size
 
 
         sub_df = df_base.iloc[start_idx:stop_idx].reset_index(drop=True)
-        len_max_molec, encoding_alphabet, encoding_list, vae_encoder, smiles_list = sub_df_prep(settings, sub_df)
+        len_max_molec, encoding_alphabet, encoding_list, vae_encoder, smiles_list, sub_df = sub_df_prep(settings, sub_df)
         lpoints, morgan_fp_tensor, daylight_fingerprints_tensor, mol2vec_tensor = gen_fingerprints(smiles_list, encoding_list, vae_encoder, encoding_alphabet, len_max_molec)
 
-
         predictions = MLP_B_model(mol2vec_tensor.to(device), morgan_fp_tensor.to(device), daylight_fingerprints_tensor.to(device), lpoints.to(device)).squeeze().to('cpu')
-        pd_sorting(settings, predictions, file_path, start_idx, stop_idx, B_OS_THRESHOLD, B_dE_THRESHOLD)
-        
-        save_index_fp(batch_iteration, settings)  
+        pd_sorting(settings, sub_df, predictions, file_path, start_idx, stop_idx, B_OS_THRESHOLD, B_dE_THRESHOLD)
+        save_index_fp(batch_iteration, settings) 
 
-        if batch_iteration % 256 ==0:
-            print('batch_iteration', batch_iteration, '/', num_batches, 'complete')
+        if batch_iteration % 10 ==0:
+            print(f'batch_iteration {batch_iteration}/{num_batches} complete, time taken: {time.time()-t_}')
+            t_ = time.time()
 
     print('Complete')
 
 
-
-
 def main():
+
     settings = yaml.safe_load(open("bf_settings.yml", "r"))
     smiles_path = settings['data']['smiles_path']
 
@@ -767,7 +751,8 @@ def main():
     encoding_list, _, _ = get_selfie_and_smiles_encodings_for_dataset(smiles_path)
 
     bf(vae_encoder, vae_decoder, mlp_model, z_model, selfies_alphabet, largest_molecule_len, lpoint_size, encoding_list, settings)
-    final_sanitiser(settings)
+    if os.path.exists(settings['data']['save_path'] + '/sanitised_bf_results.csv') ==False:
+        final_sanitiser(settings)
 
     del vae_decoder
     del vae_encoder
@@ -776,3 +761,6 @@ def main():
 
     NETWORK_B(settings)
 
+
+if __name__ == "__main__":
+    main()

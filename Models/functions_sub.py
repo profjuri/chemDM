@@ -612,9 +612,13 @@ def gen_fingerprints(smiles_list, encoding_list, vae_encoder, encoding_alphabet,
     featurizer = dc.feat.Mol2VecFingerprint()
     toMol2Vec = lambda z: np.array(featurizer(z).flatten())
 
-    num_batches = 10
-    gen_batch_size = int(len(smiles_list) /num_batches)
-    if gen_batch_size * num_batches < len(smiles_list):
+    if len(smiles_list) < 10:
+        num_batches = len(smiles_list)
+    else:  
+        num_batches = 10
+        gen_batch_size = int(len(smiles_list) /num_batches)
+
+    while gen_batch_size * num_batches < len(smiles_list):
         num_batches +=1
 
     lpoint_list = []
@@ -626,7 +630,6 @@ def gen_fingerprints(smiles_list, encoding_list, vae_encoder, encoding_alphabet,
     for x in range(num_batches):
         start_idx = x * gen_batch_size
         stop_idx = (x + 1) * gen_batch_size
-
         sub_smiles = smiles_list[start_idx:stop_idx]
         sub_encoding = encoding_list[start_idx:stop_idx]
 
