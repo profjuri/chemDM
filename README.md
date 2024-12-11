@@ -28,6 +28,8 @@ Settings.yml files to configure the 4 main files are located at:
   3. ./Model/bf_settings.yml
   4. ./Clustering/clustering.yml
 
+One can easily configure the settings.yml files and then run the relevant file from the notebook. The specific order of running to generate molecular backbones is: vae.py -> mlp.py -> bf.py -> clustering.py.
+
 Input data required to run your own simulations is available at datasets/.DS_Store. Input files should be .csv/.txt and the column containing the SMILES representations should be labelled 'smiles'.
 
 ## Citation
