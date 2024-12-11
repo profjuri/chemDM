@@ -10,7 +10,23 @@ From the top-level directory, you can do `pip install .`
 
 ## Usage
 
-The usage of this code is documented in `notebooks/MolecularProperties.ipynb`.
+This github contains 4 main files: 
+  1. ./Models/vae.py-file containing our VAE
+  2. ./Models/mlp.py -file containing our MLP
+  3. ./Models/bf.py -file containing the brute force algorithm
+  4. ./Clustering/clustering.py -file containing the clustering algorithm
+
+Notebooks to run the files are located at:
+  1. ./Models/Main.ipynb -notebook to run vae.py
+  2. ./Models/Main.ipynb -notebook to run mlp.py
+  3. ./Models/Main.ipynb -notebook to run bf.py
+  4. ./Clustering/Main.ipynb -notebook to run clustering.py
+
+Settings.yml files to configure the 4 main files are located at:
+  1. ./Models/vae_settings.yml
+  2. ./Models/mlp_settings.yml
+  3. ./Model/bf_settings.yml
+  4. ./Clustering/clustering.yml
 
 Input data required to run your own simulations is available at datasets/.DS_Store. Input files should be .csv/.txt and the column containing the SMILES representations should be labelled 'smiles'.
 
