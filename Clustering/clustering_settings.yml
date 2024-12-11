@@ -1,0 +1,4 @@
+settings:
+  input_file: ./PATH/TO/IDEAL_MOLS_1/2/
+  output_file: ./OUTPUT/PATH/
+  threshold: THRESHOLD #nominally 0.7
