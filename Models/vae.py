@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 
-'''
-This code is a heavily modified version of the VAE described at: https://github.com/aspuru-guzik-group/selfies/tree/master?tab=readme-ov-file
-'''
-
 import os
 import sys
 import time
