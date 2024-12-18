@@ -1,4 +1,4 @@
 settings:
-  input_file: ../../Outputs/BF/2_5M_F/ideal_mols_2_SAS5.csv
-  output_file: ../../Outputs/Clustering/2_5M_F_lowSAS/
-  threshold: 0.7
+  input_file: ./PATH/TO/BF/OUTPUT/ #SHOULD BE PATH TO 'ideal_mols.csv' OR 'ideal_mols_2.csv'
+  output_file: ./PATH/TO/OUTPUT/FOLDER/
+  threshold: 0.xx #NOMINALLY 0.7
