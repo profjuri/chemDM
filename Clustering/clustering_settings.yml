@@ -1,0 +1,4 @@
+settings:
+  input_file: ../../Outputs/BF/2_5M_F/ideal_mols_2_SAS5.csv
+  output_file: ../../Outputs/Clustering/2_5M_F_lowSAS/
+  threshold: 0.7
