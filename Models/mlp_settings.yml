@@ -13,7 +13,7 @@ model_params:
   prop_pred_dropout: 0.25
   prop_pred_depth: 6
   prop_growth_factor: 0.5
-  fp_size: 2048
+  FP_size: 2048
 
 hyperparameters:
   lr: 0.0005
