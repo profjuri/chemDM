@@ -36,7 +36,7 @@ class PropertyRegressionModel(nn.Module):
                         prop_pred_depth: the number of hidden layers (int)
                         prop_growth_factor: the coefficient each hidden layer number is multiplied by. E.g., hidden = 256, prop_growth_factor = 0.5, second layer = 128 (float)
                         batch_norm: whether batch normalisation will be used. 1 for yes, any other int for no (int)
-                        fp_size: size of the daylight and morgan fingerprints (int)'''
+                        FP_size: size of the daylight and morgan fingerprints (int)'''
 
 
         input_dim = settings['model_params']['input_dim']
@@ -47,7 +47,7 @@ class PropertyRegressionModel(nn.Module):
         prop_growth_factor = settings['model_params']['prop_growth_factor']
         batch_norm = settings['hyperparameters']['batch_norm']
         output_dim = int(2 * settings['settings']['num_props'])
-        FP_size = settings['model_params']['fp_size']
+        FP_size = settings['model_params']['FP_size']
 
 
 
@@ -450,7 +450,7 @@ def main():
         return
     
     num_epochs = settings['hyperparameters']['epochs']
-    FP_size = settings['model_params']['fp_size']
+    FP_size = settings['model_params']['FP_size']
     learning_rate = settings['hyperparameters']['lr']
     weight_choice = settings['hyperparameters']['weight_choice']
     learning_rate_factor = settings['hyperparameters']['learning_rate_factor']
